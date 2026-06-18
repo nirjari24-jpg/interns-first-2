@@ -37,6 +37,8 @@ interface User {
   category?: string;
   bio?: string;
   statusText?: string;
+  email?: string;
+  password?: string;
 }
 
 interface Message {
@@ -49,6 +51,18 @@ interface Message {
   status?: "sent" | "delivered" | "read";
   isNew?: boolean;
 }
+
+const MOCK_POSTS = [
+  "https://images.unsplash.com/photo-1512486130939-2c4f79935e4f?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=400&h=400&q=80",
+  "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=400&h=400&q=80"
+];
 
 // Preset Avatars for registration and mock contacts
 const PRESET_AVATARS = [
@@ -132,6 +146,11 @@ export default function Home() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Registration States
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Switch tabs in sidebar
   const [activeSection, setActiveSection] = useState("profile"); // "profile", "security"
@@ -252,13 +271,24 @@ export default function Home() {
     const savedUser = localStorage.getItem("chatgroup_current_user");
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
+      
+      // Auto-fallback: if the stored avatar URL is a stale browser blob URL, default to "/om_gadhiya.png"
+      let sanitizedAvatar = parsed.avatarUrl || "/om_gadhiya.png";
+      if (sanitizedAvatar.startsWith("blob:")) {
+        sanitizedAvatar = "/om_gadhiya.png";
+        parsed.avatarUrl = sanitizedAvatar;
+        localStorage.setItem("chatgroup_current_user", JSON.stringify(parsed));
+      }
+
       setCurrentUser(parsed);
       
       // Sync settings dashboard states with current user profile
       setName(parsed.username);
       setUsername(parsed.username);
       setBio(parsed.bio || "Available to chat in real-time.");
-      setAvatar(parsed.avatarUrl);
+      setAvatar(sanitizedAvatar);
+      setEmail(parsed.email || "your.email@domain.com");
+      setCurrentPassword(parsed.password || "omgadhiya97@123");
     }
 
     const savedUsersList = localStorage.getItem("chatgroup_registered_users");
@@ -267,10 +297,18 @@ export default function Home() {
       const combined = [...MOCK_CONTACTS];
       parsed.forEach((u) => {
         if (!combined.some((c) => c.username.toLowerCase() === u.username.toLowerCase())) {
+          // Sanitize blob URLs for other registered users
+          if (u.avatarUrl && u.avatarUrl.startsWith("blob:")) {
+            u.avatarUrl = PRESET_AVATARS[0];
+          }
           combined.push(u);
         }
       });
       setRegisteredUsers(combined);
+      localStorage.setItem(
+        "chatgroup_registered_users",
+        JSON.stringify(combined.filter((u) => !MOCK_CONTACTS.some((mc) => mc.username === u.username)))
+      );
     } else {
       localStorage.setItem("chatgroup_registered_users", JSON.stringify(MOCK_CONTACTS));
     }
@@ -451,13 +489,15 @@ export default function Home() {
   // Submit registration form
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regUsername.trim()) return;
+    if (!regUsername.trim() || !regEmail.trim() || !regPassword.trim()) return;
 
     const newUser: User = {
       username: regUsername.trim(),
       avatarUrl: selectedAvatarUrl,
       category: "MEMBER",
-      bio: "Joined ChatGroup. Let's communicate in real-time."
+      bio: "Joined ChatGroup. Let's communicate in real-time.",
+      email: regEmail.trim(),
+      password: regPassword
     };
 
     setCurrentUser(newUser);
@@ -468,6 +508,8 @@ export default function Home() {
     setUsername(newUser.username);
     setAvatar(newUser.avatarUrl);
     setBio(newUser.bio || "");
+    setEmail(newUser.email || "");
+    setCurrentPassword(newUser.password || "");
 
     setRegisteredUsers((prev) => {
       const exists = prev.some((u) => u.username.toLowerCase() === newUser.username.toLowerCase());
@@ -699,7 +741,8 @@ export default function Home() {
         ...currentUser,
         username: username.trim(),
         avatarUrl: avatar,
-        bio: bio.trim()
+        bio: bio.trim(),
+        email: email.trim()
       };
       
       setCurrentUser(updatedUser);
@@ -730,6 +773,14 @@ export default function Home() {
       return;
     }
     setCurrentPassword(newPassword);
+    if (currentUser) {
+      const updatedUser: User = {
+        ...currentUser,
+        password: newPassword
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
+    }
     setNewPassword("");
     setConfirmPassword("");
     setToast("Password updated successfully! 🛡️");
@@ -741,18 +792,34 @@ export default function Home() {
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setAvatar(imageUrl);
-      
-      if (currentUser) {
-        const updatedUser: User = { ...currentUser, avatarUrl: imageUrl };
-        setCurrentUser(updatedUser);
-        localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
-      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setAvatar(base64String);
+        
+        if (currentUser) {
+          const updatedUser: User = { ...currentUser, avatarUrl: base64String };
+          setCurrentUser(updatedUser);
+          localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
+        }
 
-      setToast("Profile picture updated successfully! 📸");
-      setTimeout(() => setToast(null), 3000);
+        setToast("Profile picture updated successfully! 📸");
+        setTimeout(() => setToast(null), 3000);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const rollRandomAvatar = () => {
+    const randomAvatar = PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)];
+    setAvatar(randomAvatar);
+    if (currentUser) {
+      const updatedUser: User = { ...currentUser, avatarUrl: randomAvatar };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
+    }
+    setToast("Rolled a new profile avatar! 🎲");
+    setTimeout(() => setToast(null), 3000);
   };
 
   const triggerAvatarUpload = () => {
@@ -869,10 +936,14 @@ export default function Home() {
                 <div className="space-y-1.5">
                   <button
                     onClick={() => setActiveSection("profile")}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left ${
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left border ${
                       activeSection === "profile"
-                        ? "bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 text-cyan-400 border border-cyan-500/20"
-                        : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-black hover:text-cyan-500"
+                        ? theme === "dark"
+                          ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                          : "bg-cyan-50 border-cyan-200 text-cyan-700"
+                        : theme === "dark"
+                          ? "border-transparent text-slate-400 hover:text-slate-200"
+                          : "border-transparent text-slate-700 hover:text-cyan-600"
                     }`}
                   >
                     <UserIcon className="w-4.5 h-4.5" />
@@ -881,14 +952,37 @@ export default function Home() {
 
                   <button
                     onClick={() => setActiveSection("security")}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left ${
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left border ${
                       activeSection === "security"
-                        ? "bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 text-cyan-400 border border-cyan-500/20"
-                        : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-black hover:text-cyan-500"
+                        ? theme === "dark"
+                          ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                          : "bg-cyan-50 border-cyan-200 text-cyan-700"
+                        : theme === "dark"
+                          ? "border-transparent text-slate-400 hover:text-slate-200"
+                          : "border-transparent text-slate-700 hover:text-cyan-600"
                     }`}
                   >
                     <Lock className="w-4.5 h-4.5" />
                     <span>Password & Security</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveSection("instagram")}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left border ${
+                      activeSection === "instagram"
+                        ? theme === "dark"
+                          ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                          : "bg-cyan-50 border-cyan-200 text-cyan-700"
+                        : theme === "dark"
+                          ? "border-transparent text-slate-400 hover:text-slate-200"
+                          : "border-transparent text-slate-700 hover:text-cyan-600"
+                    }`}
+                  >
+                    <svg className="w-4.5 h-4.5 text-pink-500 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                    <span>Instagram Profile</span>
                   </button>
                 </div>
               </div>
@@ -979,19 +1073,44 @@ export default function Home() {
                   <Lock className="w-4 h-4" />
                   <span>Security</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection("instagram")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs.5 transition-all cursor-pointer ${
+                    activeSection === "instagram"
+                      ? theme === "dark"
+                        ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 text-cyan-400 border border-cyan-500/20"
+                        : "bg-cyan-50 text-cyan-600 border border-cyan-200"
+                      : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
+                  }`}
+                >
+                  <svg className="w-4 h-4 text-pink-500 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                  </svg>
+                  <span>Instagram</span>
+                </button>
               </div>
               
               {activeSection === "profile" && (
                 <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
-                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80 text-slate-100" : "bg-white border-slate-200 shadow-md text-slate-950"
                 }`}>
                   <form onSubmit={handleSaveProfile} className="space-y-6">
-                    <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none">
+                    <div className={`border-b pb-4 flex items-center justify-between select-none ${
+                      theme === "dark" ? "border-slate-800/60" : "border-slate-100"
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <UserIcon className="w-5 h-5 text-cyan-400" />
-                        <h2 className="text-lg font-black tracking-wide">Account Profile Details</h2>
+                        <UserIcon className="w-5 h-5 text-cyan-500" />
+                        <h2 className={`text-lg font-black tracking-wide ${theme === "dark" ? "text-white" : "text-slate-950"}`}>Account Profile Details</h2>
                       </div>
-                      <span className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full font-bold">Information</span>
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border transition-colors duration-500 ${
+                        theme === "dark"
+                          ? "text-slate-400 bg-slate-900/60 border-slate-800"
+                          : "text-slate-700 bg-slate-100 border-slate-200"
+                      }`}>Information</span>
                     </div>
 
                     <div className={`flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl border select-none transition-colors duration-500 ${
@@ -1017,20 +1136,50 @@ export default function Home() {
                         </button>
                       </div>
 
-                      <div className="text-center sm:text-left space-y-1">
-                        <h3 className="text-sm.5 font-extrabold">{name}</h3>
-                        <p className={`text-[11px] leading-normal ${theme === "dark" ? "text-slate-400" : "text-black"}`}>
+                      <div className="text-center sm:text-left space-y-2">
+                        <h3 className={`text-sm.5 font-extrabold ${theme === "dark" ? "text-white" : "text-slate-950"}`}>{name}</h3>
+                        <p className={`text-[11px] leading-normal ${theme === "dark" ? "text-slate-400" : "text-slate-700 font-medium"}`}>
                           JPG, PNG allowed. Standard resolution will be automatically configured.
                         </p>
                         
                         <div className="flex items-center justify-center sm:justify-start gap-3 mt-1.5">
                           <button
                             type="button"
-                            onClick={triggerAvatarUpload}
-                            className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1.5 transition"
+                            onClick={rollRandomAvatar}
+                            className={`text-xs font-bold flex items-center gap-1.5 transition ${
+                              theme === "dark" ? "text-cyan-400 hover:text-cyan-300" : "text-cyan-600 hover:text-cyan-700"
+                            }`}
                           >
                             <RefreshCw className="w-3.5 h-3.5" /> Roll Random Photo
                           </button>
+                        </div>
+
+                        {/* Preset Avatar Selection Grid */}
+                        <div className="mt-3.5 text-left">
+                          <span className={`text-[10px] font-bold uppercase tracking-widest block mb-2 ${theme === "dark" ? "text-slate-400" : "text-slate-800"}`}>Or Select Preset Avatar</span>
+                          <div className="flex flex-wrap gap-2">
+                            {PRESET_AVATARS.map((avatarItem, idx) => (
+                              <button
+                                type="button"
+                                key={idx}
+                                onClick={() => {
+                                  setAvatar(avatarItem);
+                                  if (currentUser) {
+                                    const updatedUser: User = { ...currentUser, avatarUrl: avatarItem };
+                                    setCurrentUser(updatedUser);
+                                    localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
+                                  }
+                                  setToast("Selected preset avatar! 🎭");
+                                  setTimeout(() => setToast(null), 2000);
+                                }}
+                                className={`relative w-9 h-9 rounded-full overflow-hidden border-2 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                                  avatar === avatarItem ? "border-cyan-500 scale-105 shadow-[0_0_8px_rgba(6,182,212,0.4)]" : "border-transparent opacity-70 hover:opacity-100"
+                                }`}
+                              >
+                                <img src={avatarItem} className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1038,7 +1187,7 @@ export default function Home() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2 text-left">
-                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Full Name</label>
+                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Full Name</label>
                           <input
                             type="text"
                             value={name}
@@ -1046,7 +1195,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="Your full name..."
                             required
@@ -1054,7 +1203,7 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-2 text-left">
-                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Username</label>
+                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Username</label>
                           <input
                             type="text"
                             value={username}
@@ -1062,7 +1211,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="Your username..."
                             required
@@ -1071,9 +1220,9 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Email Address</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Email Address</label>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                          <span className={`absolute left-4 top-1/2 -translate-y-1/2 ${theme === "dark" ? "text-slate-500" : "text-slate-700"}`}>
                             <Mail className="w-4 h-4" />
                           </span>
                           <input
@@ -1083,7 +1232,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl pl-12 pr-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="your.email@domain.com"
                             required
@@ -1092,9 +1241,9 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Phone Number</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Phone Number</label>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                          <span className={`absolute left-4 top-1/2 -translate-y-1/2 ${theme === "dark" ? "text-slate-500" : "text-slate-700"}`}>
                             <Phone className="w-4 h-4" />
                           </span>
                           <input
@@ -1104,7 +1253,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl pl-12 pr-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="Your phone number..."
                             required
@@ -1113,7 +1262,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Bio Details</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Bio Details</label>
                         <textarea
                           rows={3}
                           value={bio}
@@ -1121,7 +1270,7 @@ export default function Home() {
                           className={`w-full border rounded-2xl p-4.5 text-xs.5 outline-none transition duration-300 resize-none ${
                             theme === "dark" 
                               ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                              : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                              : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                           }`}
                           placeholder="Write something about yourself..."
                         />
@@ -1140,20 +1289,26 @@ export default function Home() {
 
               {activeSection === "security" && (
                 <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
-                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80 text-slate-100" : "bg-white border-slate-200 shadow-md text-slate-950"
                 }`}>
                   <form onSubmit={handleSavePassword} className="space-y-6">
-                    <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none">
+                    <div className={`border-b pb-4 flex items-center justify-between select-none ${
+                      theme === "dark" ? "border-slate-800/60" : "border-slate-100"
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <Lock className="w-5 h-5 text-indigo-400" />
-                        <h2 className="text-lg font-black tracking-wide">Change Password Settings</h2>
+                        <Lock className="w-5 h-5 text-indigo-500" />
+                        <h2 className={`text-lg font-black tracking-wide ${theme === "dark" ? "text-white" : "text-slate-950"}`}>Change Password Settings</h2>
                       </div>
-                      <span className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full font-bold">Authentication</span>
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border transition-colors duration-500 ${
+                        theme === "dark"
+                          ? "text-slate-400 bg-slate-900/60 border-slate-800"
+                          : "text-slate-700 bg-slate-100 border-slate-200"
+                      }`}>Authentication</span>
                     </div>
 
                     <div className="space-y-4">
                       <div className="space-y-2 text-left relative">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Current Password</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Current Password</label>
                         <div className="relative">
                           <input
                             type={showCurrentPassword ? "text" : "password"}
@@ -1162,7 +1317,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="Type current password..."
                             required
@@ -1178,7 +1333,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left relative">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>New Password</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>New Password</label>
                         <div className="relative">
                           <input
                             type={showNewPassword ? "text" : "password"}
@@ -1187,7 +1342,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="Type new secure password..."
                             required
@@ -1202,13 +1357,17 @@ export default function Home() {
                         </div>
 
                         {newPassword && (
-                          <div className="mt-3.5 p-4 bg-slate-950/90 rounded-2xl border border-slate-900 space-y-3 select-none text-xs">
+                          <div className={`mt-3.5 p-4 rounded-2xl border space-y-3 select-none text-xs transition-colors duration-500 ${
+                            theme === "dark"
+                              ? "bg-slate-950/90 border-slate-900 text-slate-350"
+                              : "bg-slate-50 border-slate-200 text-slate-800"
+                          }`}>
                             <div className="space-y-1">
                               <div className="flex items-center justify-between text-[10.5px]">
-                                <span className="text-slate-400">Security Index:</span>
+                                <span className={theme === "dark" ? "text-slate-400" : "text-slate-600 font-semibold"}>Security Index:</span>
                                 <span className={`font-bold ${passwordStrength.text}`}>{passwordStrength.label}</span>
                               </div>
-                              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                              <div className={`w-full h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-slate-900" : "bg-slate-200"}`}>
                                 <div
                                   className={`h-full transition-all duration-500 ${passwordStrength.color}`}
                                   style={{ width: `${passwordStrength.score}%` }}
@@ -1216,25 +1375,43 @@ export default function Home() {
                               </div>
                             </div>
 
-                            <div className="pt-2 border-t border-slate-900/60 grid grid-cols-2 gap-2 text-[10.5px]">
+                            <div className={`pt-2 border-t grid grid-cols-2 gap-2 text-[10.5px] ${
+                              theme === "dark" ? "border-slate-900/60" : "border-slate-200"
+                            }`}>
                               <div className="flex items-center gap-1.5">
-                                {hasMinLength ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
-                                <span className={hasMinLength ? "text-slate-200" : "text-slate-500"}>8+ Characters</span>
+                                {hasMinLength ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <div className={`w-3.5 h-3.5 rounded-full border ${theme === "dark" ? "border-slate-700" : "border-slate-400"}`} />}
+                                <span className={
+                                  hasMinLength 
+                                    ? theme === "dark" ? "text-slate-200" : "text-slate-900 font-bold" 
+                                    : "text-slate-500"
+                                }>8+ Characters</span>
                               </div>
 
                               <div className="flex items-center gap-1.5">
-                                {hasCapital ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
-                                <span className={hasCapital ? "text-slate-200" : "text-slate-500"}>Uppercase Letter</span>
+                                {hasCapital ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <div className={`w-3.5 h-3.5 rounded-full border ${theme === "dark" ? "border-slate-700" : "border-slate-400"}`} />}
+                                <span className={
+                                  hasCapital 
+                                    ? theme === "dark" ? "text-slate-200" : "text-slate-900 font-bold" 
+                                    : "text-slate-500"
+                                }>Uppercase Letter</span>
                               </div>
 
                               <div className="flex items-center gap-1.5">
-                                {hasNumber ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
-                                <span className={hasNumber ? "text-slate-200" : "text-slate-500"}>Number (0-9)</span>
+                                {hasNumber ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <div className={`w-3.5 h-3.5 rounded-full border ${theme === "dark" ? "border-slate-700" : "border-slate-400"}`} />}
+                                <span className={
+                                  hasNumber 
+                                    ? theme === "dark" ? "text-slate-200" : "text-slate-900 font-bold" 
+                                    : "text-slate-500"
+                                }>Number (0-9)</span>
                               </div>
 
                               <div className="flex items-center gap-1.5">
-                                {hasSpecial ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
-                                <span className={hasSpecial ? "text-slate-200" : "text-slate-500"}>Special Symbol</span>
+                                {hasSpecial ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <div className={`w-3.5 h-3.5 rounded-full border ${theme === "dark" ? "border-slate-700" : "border-slate-400"}`} />}
+                                <span className={
+                                  hasSpecial 
+                                    ? theme === "dark" ? "text-slate-200" : "text-slate-900 font-bold" 
+                                    : "text-slate-500"
+                                }>Special Symbol</span>
                               </div>
                             </div>
                           </div>
@@ -1242,7 +1419,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left relative">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Confirm New Password</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-900"}`}>Confirm New Password</label>
                         <div className="relative">
                           <input
                             type={showConfirmPassword ? "text" : "password"}
@@ -1251,7 +1428,7 @@ export default function Home() {
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
                               theme === "dark" 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                                : "bg-slate-50 border-slate-200 text-slate-900 font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="Verify new secure password..."
                             required
@@ -1269,11 +1446,203 @@ export default function Home() {
 
                     <button
                       type="submit"
-                      className="w-full bg-white text-slate-950 font-black py-4 rounded-2xl text-xs.5 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 mt-4 shadow-md select-none cursor-pointer"
+                      className={`w-full font-black py-4 rounded-2xl text-xs.5 transition-all flex items-center justify-center gap-1.5 mt-4 shadow-md select-none cursor-pointer border ${
+                        theme === "dark"
+                          ? "bg-white text-slate-950 hover:bg-slate-200 border-transparent"
+                          : "bg-slate-900 text-white hover:bg-slate-800 border-slate-950"
+                      }`}
                     >
                       <Key className="w-4.5 h-4.5" /> Save New Password
                     </button>
                   </form>
+                </div>
+              )}
+
+              {activeSection === "instagram" && (
+                <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
+                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80 text-slate-100" : "bg-white border-slate-200 shadow-md text-slate-950"
+                }`}>
+                  
+                  {/* Instagram Header Area */}
+                  <div className={`flex flex-col md:flex-row items-center md:items-start gap-8 border-b pb-8 select-none ${
+                    theme === "dark" ? "border-slate-800/60" : "border-slate-100"
+                  }`}>
+                    
+                    {/* Profile Picture with story gradient border */}
+                    <div className="flex-shrink-0 relative">
+                      <div className="w-[124px] h-[124px] instagram-story-ring flex items-center justify-center shadow-lg">
+                        <div className={`w-[116px] h-[116px] rounded-full overflow-hidden border-[4px] relative ${
+                          theme === "dark" ? "border-slate-950 bg-slate-900" : "border-white bg-slate-100"
+                        }`}>
+                          <img
+                            src={avatar}
+                            alt={name}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats & Controls */}
+                    <div className="flex-1 flex flex-col items-center md:items-start gap-4">
+                      
+                      {/* Name & Buttons Row */}
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <h2 className="text-xl font-bold tracking-tight">{username}</h2>
+                          
+                          {/* Verified Badge */}
+                          <svg className="w-[18px] h-[18px] text-sky-500 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                          </svg>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSection("profile")}
+                            className={`instagram-btn-secondary ${
+                              theme === "dark" ? "instagram-btn-secondary-dark" : ""
+                            }`}
+                          >
+                            Edit Profile
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`http://localhost:3000/profile/${username}`);
+                              setToast("Profile URL copied! 🔗");
+                              setTimeout(() => setToast(null), 2000);
+                            }}
+                            className={`instagram-btn-secondary ${
+                              theme === "dark" ? "instagram-btn-secondary-dark" : ""
+                            }`}
+                          >
+                            Share Profile
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Stats Row */}
+                      <div className={`flex gap-8 text-sm ${
+                        theme === "dark" ? "text-slate-300" : "text-slate-800"
+                      }`}>
+                        <div><span className="font-extrabold">9</span> posts</div>
+                        <div><span className="font-extrabold">1.4K</span> followers</div>
+                        <div><span className="font-extrabold">380</span> following</div>
+                      </div>
+
+                      {/* Bio Details */}
+                      <div className="text-center md:text-left space-y-1">
+                        <h3 className="font-bold text-sm leading-tight">{name}</h3>
+                        <p className={`text-xs uppercase tracking-wide font-bold ${
+                          theme === "dark" ? "text-slate-500" : "text-slate-700"
+                        }`}>CREATIVE DEVELOPER</p>
+                        <p className={`text-xs max-w-[420px] leading-relaxed whitespace-pre-line ${
+                          theme === "dark" ? "text-slate-300" : "text-slate-800"
+                        }`}>{bio}</p>
+                        <a 
+                          href={`mailto:${email}`}
+                          className="text-xs font-semibold text-blue-600 dark:text-sky-400 hover:underline block"
+                        >
+                          {email}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Highlights section */}
+                  <div className={`py-6 border-b flex gap-6 overflow-x-auto scrollbar-thin select-none ${
+                    theme === "dark" ? "border-slate-200/10" : "border-slate-100"
+                  }`}>
+                    {[
+                      { label: "Designs 🎨", emoji: "🎨", color: "from-purple-500 to-indigo-500" },
+                      { label: "Travel ✈️", emoji: "✈️", color: "from-cyan-500 to-blue-500" },
+                      { label: "Coding 💻", emoji: "💻", color: "from-amber-500 to-orange-500" },
+                      { label: "Music 🎵", emoji: "🎵", color: "from-pink-500 to-rose-500" },
+                      { label: "Memories 📸", emoji: "📸", color: "from-teal-500 to-emerald-500" }
+                    ].map((hl, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                        <div className={`w-14 h-14 rounded-full p-[2px] border ${
+                          theme === "dark" ? "border-slate-800" : "border-slate-200"
+                        }`}>
+                          <div className={`w-full h-full rounded-full bg-gradient-to-tr ${hl.color} flex items-center justify-center text-lg shadow-inner shadow-black/20 hover:scale-105 active:scale-95 transition cursor-pointer`}>
+                            {hl.emoji}
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold ${
+                          theme === "dark" ? "text-slate-400" : "text-slate-800"
+                        }`}>{hl.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Post Grid Tab Bar */}
+                  <div className={`flex justify-center border-b select-none ${
+                    theme === "dark" ? "border-slate-200/10" : "border-slate-100"
+                  }`}>
+                    <div className="flex gap-12 text-xs font-bold tracking-widest uppercase">
+                      <button className={`flex items-center gap-1.5 py-4 border-t-2 -mt-[1px] transition-colors duration-300 ${
+                        theme === "dark" ? "border-slate-100 text-slate-100" : "border-slate-900 text-slate-900"
+                      }`}>
+                        <svg className="w-4 h-4 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="7"></rect>
+                          <rect x="14" y="3" width="7" height="7"></rect>
+                          <rect x="14" y="14" width="7" height="7"></rect>
+                          <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        <span>POSTS</span>
+                      </button>
+                      <button className={`flex items-center gap-1.5 py-4 transition-colors duration-300 ${
+                        theme === "dark" ? "text-slate-500 hover:text-slate-350" : "text-slate-500 hover:text-slate-850"
+                      } opacity-60 hover:opacity-100`}>
+                        <svg className="w-4 h-4 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                        </svg>
+                        <span>REELS</span>
+                      </button>
+                      <button className={`flex items-center gap-1.5 py-4 transition-colors duration-300 ${
+                        theme === "dark" ? "text-slate-500 hover:text-slate-350" : "text-slate-500 hover:text-slate-850"
+                      } opacity-60 hover:opacity-100`}>
+                        <svg className="w-4 h-4 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>SAVED</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3x3 Media Post Grid */}
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3 pt-6">
+                    {MOCK_POSTS.map((url, index) => (
+                      <div key={index} className="aspect-square w-full rounded-xl overflow-hidden relative bg-slate-900 border border-slate-200/10 group/post shadow-sm">
+                        <img
+                          src={url}
+                          alt={`Post ${index + 1}`}
+                          className="object-cover w-full h-full instagram-post-zoom"
+                        />
+                        
+                        {/* Hover Overlay showing stats */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/post:opacity-100 transition-opacity flex items-center justify-center gap-6 text-white text-sm.5 font-bold select-none pointer-events-none">
+                          <div className="flex items-center gap-1.5">
+                            <svg className="w-5 h-5 fill-white stroke-none" viewBox="0 0 24 24">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                            </svg>
+                            <span>{Math.floor(Math.random() * 200) + 50}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <svg className="w-5 h-5 fill-white stroke-none" viewBox="0 0 24 24">
+                              <path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"></path>
+                            </svg>
+                            <span>{Math.floor(Math.random() * 30) + 5}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                 </div>
               )}
 
@@ -1442,13 +1811,25 @@ export default function Home() {
 
       {/* 2. AUTH / LOGOUT / REGISTER CONTAINER */}
       {!currentUser ? (
-        <div className={`flex-1 flex items-center justify-center p-6 ${
-          theme === "dark" ? "bg-slate-900" : "bg-white"
+        <div className={`flex-1 flex items-center justify-center p-6 transition-all duration-500 relative overflow-hidden ${
+          theme === "dark" ? "bg-[#04060A]" : "bg-[#f8fafc]"
         }`}>
-          <div className={`w-full max-w-[390px] rounded-2xl p-8 shadow-[0_15px_40px_rgba(0,0,0,0.04)] flex flex-col items-center animate-chat-bubble border ${
-            theme === "dark" ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"
+          {/* Background glowing blobs */}
+          <div className="absolute inset-0 pointer-events-none z-0">
+            <div className={`absolute top-[20%] left-[25%] w-[300px] h-[300px] rounded-full blur-[100px] transition-opacity duration-700 ${
+              theme === "dark" ? "bg-cyan-500/10 opacity-100" : "bg-cyan-400/5 opacity-80"
+            }`} />
+            <div className={`absolute bottom-[20%] right-[25%] w-[300px] h-[300px] rounded-full blur-[100px] transition-opacity duration-700 ${
+              theme === "dark" ? "bg-indigo-500/10 opacity-100" : "bg-indigo-400/5 opacity-80"
+            }`} />
+          </div>
+
+          <div className={`w-full max-w-[420px] rounded-[32px] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex flex-col items-center animate-chat-bubble border z-10 glass-panel ${
+            theme === "dark" 
+              ? "glass-panel-dark" 
+              : "glass-panel-light"
           }`}>
-            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/10 mb-4 text-white">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/10 mb-4 text-white">
               <svg className="w-7 h-7 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
@@ -1459,17 +1840,17 @@ export default function Home() {
               Register a username and choose a profile photo to start chatting in real-time.
             </p>
 
-            <form onSubmit={handleRegister} className="w-full flex flex-col gap-5">
+            <form onSubmit={handleRegister} className="w-full flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Select Profile Face</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-left">Select Profile Face</span>
                 <div className="grid grid-cols-6 gap-2">
                   {PRESET_AVATARS.map((avatarItem, idx) => (
                     <button
                       type="button"
                       key={idx}
                       onClick={() => setSelectedAvatarUrl(avatarItem)}
-                      className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all active:scale-90 ${
-                        selectedAvatarUrl === avatarItem ? "border-sky-500 scale-105" : "border-transparent opacity-60 hover:opacity-100"
+                      className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all active:scale-90 cursor-pointer ${
+                        selectedAvatarUrl === avatarItem ? "border-cyan-500 scale-105" : "border-transparent opacity-60 hover:opacity-100"
                       }`}
                     >
                       <img src={avatarItem} className="w-full h-full object-cover" />
@@ -1478,27 +1859,81 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Username</label>
-                <input
-                  type="text"
-                  maxLength={18}
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
-                  placeholder="e.g. Ann"
-                  className={`w-full px-4 py-2.5 border rounded-xl outline-none text-sm font-medium shadow-sm transition-colors ${
-                    theme === "dark" 
-                      ? "bg-slate-900 border-slate-800 text-white placeholder-slate-600 focus:border-sky-500/50" 
-                      : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
-                  }`}
-                  required
-                />
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Username</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                    <UserIcon className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={18}
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    placeholder="e.g. Ann"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-xl outline-none text-xs.5 font-medium transition-all ${
+                      theme === "dark" 
+                        ? "bg-slate-950/60 border-slate-800 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
+                        : "bg-slate-50/80 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                    }`}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Email Address</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Mail className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="your.email@domain.com"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-xl outline-none text-xs.5 font-medium transition-all ${
+                      theme === "dark" 
+                        ? "bg-slate-950/60 border-slate-800 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
+                        : "bg-slate-50/80 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                    }`}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Password</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Lock className="w-4 h-4" />
+                  </span>
+                  <input
+                    type={showRegPassword ? "text" : "password"}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="Create a secure password"
+                    className={`w-full pl-11 pr-11 py-3 border rounded-xl outline-none text-xs.5 font-medium transition-all ${
+                      theme === "dark" 
+                        ? "bg-slate-950/60 border-slate-800 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
+                        : "bg-slate-50/80 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                    }`}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                  >
+                    {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <button
                 type="submit"
-                disabled={!regUsername.trim()}
-                className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 font-bold text-white rounded-xl shadow-md active:scale-95 transition-all text-sm mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!regUsername.trim() || !regEmail.trim() || !regPassword.trim()}
+                className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 font-extrabold text-white rounded-xl shadow-[0_8px_20px_rgba(6,182,212,0.15)] active:scale-95 transition-all text-xs.5 mt-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 Join Server
               </button>
@@ -1947,14 +2382,18 @@ export default function Home() {
                 </div>
               </div>
 
-              <h2 className={`text-[18px] font-black tracking-wide mb-0.5 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>
+              <h2 className={`text-[18px] font-black tracking-wide mb-0.5 ${theme === "dark" ? "text-slate-200" : "text-slate-950"}`}>
                 {activeContact.username.toUpperCase()}
               </h2>
-              <p className="text-[11px] font-extrabold tracking-widest text-slate-450 uppercase mb-4">
+              <p className={`text-[11px] font-extrabold tracking-widest uppercase mb-4 ${
+                theme === "dark" ? "text-slate-400" : "text-slate-700"
+              }`}>
                 {activeContact.category || "MEMBER"}
               </p>
 
-              <p className="text-[12px] leading-relaxed text-slate-500 max-w-[240px] mb-6 font-medium">
+              <p className={`text-[12px] leading-relaxed max-w-[240px] mb-6 font-medium ${
+                theme === "dark" ? "text-slate-400" : "text-slate-700"
+              }`}>
                 {activeContact.bio || "No profile biography available yet."}
               </p>
 
