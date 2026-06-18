@@ -282,6 +282,12 @@ export default function Home() {
 
   // 1. Initial Load from Local Cache
   useEffect(() => {
+    // Load persisted theme
+    const savedTheme = localStorage.getItem("chatgroup_theme") as "light" | "dark" | "black" | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+
     const savedUser = localStorage.getItem("chatgroup_current_user");
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
@@ -325,6 +331,11 @@ export default function Home() {
 
     setActiveContact(MOCK_CONTACTS[0]);
   }, []);
+
+  // Save theme changes to Local Cache
+  useEffect(() => {
+    localStorage.setItem("chatgroup_theme", theme);
+  }, [theme]);
 
   // 2. Setup BroadcastChannel for Real-time synchronizations
   useEffect(() => {
@@ -1520,7 +1531,11 @@ export default function Home() {
       
       {/* 1. TOP CHATGROUP NAVBAR */}
       <header className={`h-[60px] border-b px-6 flex items-center justify-between z-50 flex-shrink-0 ${
-        isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+        theme === "black"
+          ? "bg-black border-neutral-900"
+          : isDark 
+            ? "bg-slate-900 border-slate-800" 
+            : "bg-white border-slate-200"
       }`}>
         
         {/* Left Branding */}
@@ -1534,83 +1549,110 @@ export default function Home() {
         </div>
 
         {/* Center Search bar */}
-        <div className={`hidden md:flex w-[260px] h-[36px] border rounded-lg items-center px-3 gap-2 ${
-          isDark ? "bg-slate-950 border-slate-800" : "bg-slate-100 border-slate-200"
-        }`}>
-          <svg className="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-sm w-full outline-none text-slate-400 placeholder-slate-450 font-normal"
-          />
-        </div>
-
-        {/* Right Nav Icons */}
-        <div className="flex items-center gap-5">
-          {/* Search Icon */}
-          <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+        {currentUser && (
+          <div className={`hidden md:flex w-[260px] h-[36px] border rounded-lg items-center px-3 gap-2 ${
+            theme === "black"
+              ? "bg-[#0a0a0a] border-neutral-800"
+              : isDark 
+                ? "bg-slate-950 border-slate-800" 
+                : "bg-slate-100 border-slate-200"
+          }`}>
+            <svg className="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
             </svg>
-          </button>
-          
-          {/* Direct Messages Icon */}
-          <button className="text-slate-500 hover:text-slate-800 transition-colors relative">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-            </svg>
-            <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold flex items-center justify-center text-white">1</span>
-          </button>
-
-          {/* Settings gear icon */}
-          <button 
-            onClick={() => {
-              if (currentUser) {
-                setName(currentUser.username);
-                setUsername(currentUser.username);
-                setBio(currentUser.bio || "");
-                setAvatar(currentUser.avatarUrl);
-              }
-              setCurrentView("settings");
-            }}
-            className="text-slate-500 hover:text-slate-800 transition-colors"
-            title="Settings Dashboard"
-          >
-            <svg className="w-5.5 h-5.5 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-
-          {/* Home Icon */}
-          <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-            </svg>
-          </button>
-
-          {/* Notifications Heart */}
-          <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-            </svg>
-          </button>
-
-          {/* Logged in user avatar */}
-          {currentUser ? (
-            <img
-              src={currentUser.avatarUrl}
-              alt={currentUser.username}
-              className="w-7 h-7 rounded-full object-cover border border-slate-200 active:scale-95 transition-transform"
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-sm w-full outline-none text-slate-400 placeholder-slate-450 font-normal"
             />
+          </div>
+        )}
+
+        {/* Right Nav Icons / Theme Toggle (if not logged in) */}
+        <div className="flex items-center gap-5">
+          {currentUser ? (
+            <>
+              {/* Search Icon */}
+              <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
+                </svg>
+              </button>
+              
+              {/* Direct Messages Icon */}
+              <button className="text-slate-500 hover:text-slate-800 transition-colors relative">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+                <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold flex items-center justify-center text-white">1</span>
+              </button>
+
+              {/* Settings gear icon */}
+              <button 
+                onClick={() => {
+                  setName(currentUser.username);
+                  setUsername(currentUser.username);
+                  setBio(currentUser.bio || "");
+                  setAvatar(currentUser.avatarUrl);
+                  setCurrentView("settings");
+                }}
+                className="text-slate-500 hover:text-slate-800 transition-colors"
+                title="Settings Dashboard"
+              >
+                <svg className="w-5.5 h-5.5 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+
+              {/* Home Icon */}
+              <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+              </button>
+
+              {/* Notifications Heart */}
+              <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                </svg>
+              </button>
+
+              {/* Logged in user avatar */}
+              <img
+                src={currentUser.avatarUrl}
+                alt={currentUser.username}
+                className="w-7 h-7 rounded-full object-cover border border-slate-200 active:scale-95 transition-transform"
+              />
+            </>
           ) : (
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-500 border border-white/20 flex items-center justify-center text-white">
-              <span className="text-[10px] font-bold">U</span>
-            </div>
+            /* Theme Toggle Button for Logged-Out Users */
+            <button
+              onClick={() => setTheme(prev => {
+                if (prev === "light") return "dark";
+                if (prev === "dark") return "black";
+                return "light";
+              })}
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                theme === "black"
+                  ? "bg-[#121212] border-neutral-900 text-amber-400 hover:bg-neutral-900"
+                  : isDark
+                    ? "bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-850"
+                    : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100 shadow-sm"
+              }`}
+              title={`Toggle Theme (Current: ${theme === "black" ? "OLED Black" : theme === "dark" ? "Dark Mode" : "Light Mode"})`}
+            >
+              {theme === "black" ? (
+                <Sun className="w-4 h-4" />
+              ) : theme === "dark" ? (
+                <Sparkles className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
           )}
         </div>
       </header>
@@ -1618,14 +1660,18 @@ export default function Home() {
       {/* 2. AUTH / LOGOUT / REGISTER CONTAINER */}
       {!currentUser ? (
         <div className={`flex-1 flex items-center justify-center p-6 ${
-          isDark ? "bg-slate-900" : "bg-white"
+          theme === "black"
+            ? "bg-black"
+            : isDark ? "bg-slate-900" : "bg-white"
         }`}>
           <div className={`w-full max-w-[390px] rounded-2xl p-8 shadow-[0_15px_40px_rgba(0,0,0,0.04)] flex flex-col items-center animate-chat-bubble border ${
-            isDark ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"
+            theme === "black"
+              ? "bg-[#050505] border-neutral-900 text-slate-100"
+              : isDark ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-850"
           }`}>
             {/* Auth Mode Toggle Tabs */}
             <div className={`flex w-full border-b mb-5 ${
-              isDark ? "border-slate-800" : "border-slate-100"
+              theme === "black" ? "border-neutral-900" : isDark ? "border-slate-800" : "border-slate-100"
             }`}>
               <button
                 type="button"
@@ -1696,9 +1742,11 @@ export default function Home() {
                     onChange={(e) => setRegUsername(e.target.value)}
                     placeholder="e.g. Ann"
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
-                      isDark 
-                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                      theme === "black"
+                        ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-sky-500/50"
+                        : isDark 
+                          ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
                     }`}
                     required
                   />
@@ -1712,9 +1760,11 @@ export default function Home() {
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="e.g. ann@gmail.com"
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
-                      isDark 
-                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                      theme === "black"
+                        ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-sky-500/50"
+                        : isDark 
+                          ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
                     }`}
                     required
                   />
@@ -1728,9 +1778,11 @@ export default function Home() {
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Choose account password..."
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
-                      isDark 
-                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                      theme === "black"
+                        ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-sky-500/50"
+                        : isDark 
+                          ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
                     }`}
                     required
                   />
@@ -1754,9 +1806,11 @@ export default function Home() {
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     placeholder="Enter username or email..."
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
-                      isDark 
-                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                      theme === "black"
+                        ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-sky-500/50"
+                        : isDark 
+                          ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
                     }`}
                     required
                   />
@@ -1770,9 +1824,11 @@ export default function Home() {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Enter account password..."
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
-                      isDark 
-                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                      theme === "black"
+                        ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-sky-500/50"
+                        : isDark 
+                          ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
                     }`}
                     required
                   />
@@ -1789,18 +1845,20 @@ export default function Home() {
             )}
 
             <div className="flex items-center my-3.5 w-full">
-              <div className={`flex-grow border-t ${isDark ? "border-slate-800" : "border-slate-200"}`}></div>
-              <span className={`mx-3 text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-slate-600" : "text-slate-400"}`}>or</span>
-              <div className={`flex-grow border-t ${isDark ? "border-slate-800" : "border-slate-200"}`}></div>
+              <div className={`flex-grow border-t ${theme === "black" ? "border-neutral-900" : isDark ? "border-slate-800" : "border-slate-200"}`}></div>
+              <span className={`mx-3 text-[10px] font-bold uppercase tracking-wider ${theme === "black" ? "text-slate-700" : isDark ? "text-slate-600" : "text-slate-400"}`}>or</span>
+              <div className={`flex-grow border-t ${theme === "black" ? "border-neutral-900" : isDark ? "border-slate-800" : "border-slate-200"}`}></div>
             </div>
 
             <button
               type="button"
               onClick={() => setIsGoogleModalOpen(true)}
               className={`w-full py-2.5 border rounded-xl outline-none text-xs font-bold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer ${
-                isDark
-                  ? "bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-200"
-                  : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                theme === "black"
+                  ? "bg-black border-neutral-900 hover:bg-[#080808] text-slate-200"
+                  : isDark
+                    ? "bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-200"
+                    : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
               }`}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
