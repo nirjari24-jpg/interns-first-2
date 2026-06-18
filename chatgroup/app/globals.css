@@ -110,3 +110,50 @@ body {
 .light-theme .text-indigo-400 * { color: #818cf8 !important; }
 .light-theme .text-cyan-400 * { color: #22d3ee !important; }
 .light-theme .text-emerald-400 * { color: #34d399 !important; }
+
+/* OLED Black Theme Overrides */
+.black-theme {
+  background-color: #000000 !important;
+  color: #f3f4f6 !important;
+  
+  /* Override Tailwind CSS variables for pure OLED black look */
+  --color-slate-950: #000000 !important;
+  --color-slate-900: #050505 !important;
+  --color-slate-850: #0a0a0a !important;
+  --color-slate-800: #121212 !important;
+  --color-slate-700: #1a1a1a !important;
+  --color-slate-600: #262626 !important;
+  --color-slate-500: #525252 !important;
+  --color-slate-400: #a3a3a3 !important;
+  
+  background-image: none !important;
+}
+
+/* Force custom bracket background class overrides */
+.black-theme .bg-\[\#04060A\],
+.black-theme .bg-\[\#080B12\]\/80,
+.black-theme .bg-\[\#080B12\] {
+  background-color: #000000 !important;
+}
+
+/* Force border styling updates */
+.black-theme .border-slate-800\/80,
+.black-theme .border-slate-800,
+.black-theme .border-slate-900\/60,
+.black-theme .border-slate-200 {
+  border-color: #121212 !important;
+}
+
+/* OLED form overrides */
+.black-theme input,
+.black-theme textarea,
+.black-theme select {
+  background-color: #0a0a0a !important;
+  border-color: #1c1c1c !important;
+  color: #ffffff !important;
+}
+
+.black-theme input::placeholder,
+.black-theme textarea::placeholder {
+  color: #525252 !important;
+}

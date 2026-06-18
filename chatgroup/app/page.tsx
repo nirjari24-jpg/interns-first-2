@@ -32,7 +32,10 @@ import {
 
 // Types
 interface User {
+  id?: string;
   username: string;
+  email?: string;
+  password?: string;
   avatarUrl: string;
   category?: string;
   bio?: string;
@@ -63,35 +66,50 @@ const PRESET_AVATARS = [
 // Default built-in mock contacts based on the user's screenshot
 const MOCK_CONTACTS: User[] = [
   {
+    id: "mock_ana",
     username: "Ana Malbasa",
+    email: "ana@example.com",
+    password: "password123",
     avatarUrl: PRESET_AVATARS[0],
     category: "PERSONAL BLOG",
     bio: "Lorem Ipsum Dolor Sit Amet, Consectetur Adipiscing Elit. Donec Sit Amet Nunc Augue. Pellentesque Vel Pellentesque Tellus. Nam Lacinia Leo Sed Eleifend Dignissim.",
     statusText: "Active 5m ago"
   },
   {
+    id: "mock_paul",
     username: "Paul Osmand",
+    email: "paul@example.com",
+    password: "password123",
     avatarUrl: PRESET_AVATARS[1],
     category: "CREATIVE DESIGNER",
     bio: "Passionate about layouts, dark themes, and rich aesthetics. UI developer & animator based in London.",
     statusText: "hahah, nice!"
   },
   {
+    id: "mock_edward",
     username: "Edward Davis",
+    email: "edward@example.com",
+    password: "password123",
     avatarUrl: PRESET_AVATARS[4],
     category: "PHOTOGRAPHER",
     bio: "Capturing moments and cityscapes. Let's grab coffee and share our logs.",
     statusText: "Are we still going for a coffee?"
   },
   {
+    id: "mock_naomi",
     username: "Naomi Riste",
+    email: "naomi@example.com",
+    password: "password123",
     avatarUrl: PRESET_AVATARS[5],
     category: "WRITER",
     bio: "Words shape worlds. Blogging, script-writing, and coffee lover.",
     statusText: "What did your boss say?"
   },
   {
+    id: "mock_jonathan",
     username: "Jonathan Blake",
+    email: "jonathan@example.com",
+    password: "password123",
     avatarUrl: PRESET_AVATARS[3],
     category: "ARTIST",
     bio: "Abstract lines, digital oil paint, and visual animations.",
@@ -113,7 +131,8 @@ export default function Home() {
   const [currentView, setCurrentView] = useState("chat"); // "chat" or "settings"
 
   // Settings Theme
-  const [theme, setTheme] = useState("light"); // "dark" or "light"
+  const [theme, setTheme] = useState<"light" | "dark" | "black">("light"); // "dark", "light", or "black"
+  const isDark = theme === "dark" || theme === "black";
 
   // Account Detail States
   const [name, setName] = useState("Om Gadhiya");
@@ -145,9 +164,23 @@ export default function Home() {
 
   // Chat authentication states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authMode, setAuthMode] = useState<"register" | "login">("register");
+  
+  // Registration Form States
   const [regUsername, setRegUsername] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
   const [registeredUsers, setRegisteredUsers] = useState<User[]>(MOCK_CONTACTS);
+
+  // Login Form States
+  const [loginIdentifier, setLoginIdentifier] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Google Sign-In states
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [isSigningInWithGoogle, setIsSigningInWithGoogle] = useState(false);
+  const [googleCustomEmail, setGoogleCustomEmail] = useState("");
 
   // Chat window states
   const [activeContact, setActiveContact] = useState<User | null>(null);
@@ -451,27 +484,48 @@ export default function Home() {
   // Submit registration form
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regUsername.trim()) return;
+    if (!regUsername.trim() || !regEmail.trim() || !regPassword) {
+      setToast("Please fill in all registration fields! ❌");
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
 
     const newUser: User = {
+      id: "u_" + Math.random().toString(36).substr(2, 9),
       username: regUsername.trim(),
+      email: regEmail.trim().toLowerCase(),
+      password: regPassword,
       avatarUrl: selectedAvatarUrl,
       category: "MEMBER",
       bio: "Joined ChatGroup. Let's communicate in real-time."
     };
+
+    // Check if duplicate of exact (username, email, password) already exists
+    const duplicate = registeredUsers.some(
+      (u) =>
+        u.username.toLowerCase() === newUser.username.toLowerCase() &&
+        u.email?.toLowerCase() === newUser.email?.toLowerCase() &&
+        u.password === newUser.password
+    );
+
+    if (duplicate) {
+      setToast("An account with this username, email and password already exists! ❌");
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
 
     setCurrentUser(newUser);
     localStorage.setItem("chatgroup_current_user", JSON.stringify(newUser));
 
     // Sync settings dashboard profiles
     setName(newUser.username);
-    setUsername(newUser.username);
+    setUsername(newUser.username.toLowerCase().replace(/\s+/g, "_"));
     setAvatar(newUser.avatarUrl);
     setBio(newUser.bio || "");
+    setEmail(newUser.email || "");
+    setCurrentPassword(newUser.password || "");
 
     setRegisteredUsers((prev) => {
-      const exists = prev.some((u) => u.username.toLowerCase() === newUser.username.toLowerCase());
-      if (exists) return prev;
       const nextList = [...prev, newUser];
       localStorage.setItem("chatgroup_registered_users", JSON.stringify(nextList));
       return nextList;
@@ -483,6 +537,107 @@ export default function Home() {
       user: newUser
     });
     channel.close();
+
+    setToast("Account registered successfully! Welcome. 🎉");
+    setTimeout(() => setToast(null), 3000);
+
+    // Clear registration fields
+    setRegUsername("");
+    setRegEmail("");
+    setRegPassword("");
+  };
+
+  // Submit login form
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginIdentifier.trim() || !loginPassword) {
+      setToast("Please fill in all login fields! ❌");
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    const identifier = loginIdentifier.trim().toLowerCase();
+
+    // Query registeredUsers for an account with matching (username OR email) AND matching password
+    const matchedUser = registeredUsers.find(
+      (u) =>
+        (u.username.toLowerCase() === identifier || u.email?.toLowerCase() === identifier) &&
+        u.password === loginPassword
+    );
+
+    if (matchedUser) {
+      setCurrentUser(matchedUser);
+      localStorage.setItem("chatgroup_current_user", JSON.stringify(matchedUser));
+
+      // Sync settings dashboard profiles
+      setName(matchedUser.username);
+      setUsername(matchedUser.username.toLowerCase().replace(/\s+/g, "_"));
+      setAvatar(matchedUser.avatarUrl);
+      setBio(matchedUser.bio || "");
+      if (matchedUser.email) setEmail(matchedUser.email);
+      if (matchedUser.password) setCurrentPassword(matchedUser.password);
+
+      setToast(`Logged in as ${matchedUser.username}! Welcome back. 👋`);
+      setTimeout(() => setToast(null), 3000);
+
+      // Clear login fields
+      setLoginIdentifier("");
+      setLoginPassword("");
+    } else {
+      setToast("Invalid username/email or password! ❌");
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  // Google ID Sign-in handler
+  const handleGoogleSignIn = (gUsername: string, emailStr: string, avatarUrlStr: string) => {
+    setIsSigningInWithGoogle(true);
+
+    // Simulate minor network delay for OAuth realism
+    setTimeout(() => {
+      const newUser: User = {
+        id: "google_" + Math.random().toString(36).substr(2, 9),
+        username: gUsername.trim(),
+        email: emailStr,
+        password: "google_oauth",
+        avatarUrl: avatarUrlStr,
+        category: "MEMBER",
+        bio: `Logged in via Google (${emailStr}).`
+      };
+
+      setCurrentUser(newUser);
+      localStorage.setItem("chatgroup_current_user", JSON.stringify(newUser));
+
+      // Sync settings dashboard profiles
+      setName(newUser.username);
+      setUsername(newUser.username.toLowerCase().replace(/\s+/g, "_"));
+      setAvatar(newUser.avatarUrl);
+      setBio(newUser.bio || "");
+      setEmail(emailStr);
+      setCurrentPassword("google_oauth");
+
+      setRegisteredUsers((prev) => {
+        const exists = prev.some((u) => u.username.toLowerCase() === newUser.username.toLowerCase() && u.email?.toLowerCase() === emailStr.toLowerCase());
+        if (exists) return prev;
+        const nextList = [...prev, newUser];
+        localStorage.setItem("chatgroup_registered_users", JSON.stringify(nextList));
+        return nextList;
+      });
+
+      const channel = new BroadcastChannel("chatgroup_realtime");
+      channel.postMessage({
+        type: "USER_REGISTER",
+        user: newUser
+      });
+      channel.close();
+
+      setIsSigningInWithGoogle(false);
+      setIsGoogleModalOpen(false);
+
+      // Trigger success toast
+      setToast("Signed in with Google successfully! 🛡️");
+      setTimeout(() => setToast(null), 3000);
+    }, 1200);
   };
 
   // Send message submit
@@ -763,7 +918,11 @@ export default function Home() {
   if (currentView === "settings") {
     return (
       <main className={`min-h-screen w-full transition-colors duration-500 flex flex-col justify-start items-center p-4 sm:p-6 md:p-12 font-sans relative overflow-y-auto ${
-        theme === "dark" ? "bg-[#04060A] text-[#E4E6EB]" : "bg-slate-50 text-black light-theme"
+        theme === "black" 
+          ? "bg-black text-[#E4E6EB] black-theme" 
+          : theme === "dark" 
+            ? "bg-[#04060A] text-[#E4E6EB]" 
+            : "bg-slate-50 text-black light-theme"
       }`}>
         
         {/* Hidden File Input for Avatar Upload */}
@@ -778,10 +937,10 @@ export default function Home() {
         {/* Background glowing particles (Aurora effect) */}
         <div className="absolute inset-0 pointer-events-none z-0">
           <div className={`absolute top-[5%] left-[10%] w-[380px] h-[380px] rounded-full blur-[120px] transition-opacity duration-700 ${
-            theme === "dark" ? "bg-cyan-500/10 opacity-100" : "bg-cyan-400/5 opacity-80"
+            isDark ? "bg-cyan-500/10 opacity-100" : "bg-cyan-400/5 opacity-80"
           }`} />
           <div className={`absolute bottom-[10%] right-[10%] w-[450px] h-[450px] rounded-full blur-[140px] transition-opacity duration-700 ${
-            theme === "dark" ? "bg-purple-500/10 opacity-100" : "bg-purple-400/5 opacity-80"
+            isDark ? "bg-purple-500/10 opacity-100" : "bg-purple-400/5 opacity-80"
           }`} />
         </div>
 
@@ -797,7 +956,7 @@ export default function Home() {
           
           {/* Top Header Panel */}
           <div className={`relative border rounded-3xl p-5 md:p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden transition-colors duration-500 ${
-            theme === "dark" 
+            isDark 
               ? "bg-gradient-to-r from-slate-950 via-[#0B0F19] to-slate-950 border-slate-800/80" 
               : "bg-white border-slate-200"
           }`}>
@@ -810,7 +969,7 @@ export default function Home() {
               <button
                 onClick={() => setCurrentView("chat")}
                 className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
-                  theme === "dark"
+                  isDark
                     ? "bg-slate-900 border-slate-800 text-cyan-400 hover:bg-slate-800"
                     : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100 shadow-sm"
                 }`}
@@ -828,7 +987,7 @@ export default function Home() {
                     Settings Dashboard
                   </span>
                 </h1>
-                <p className={`text-xs mt-1 ${theme === "dark" ? "text-slate-400" : "text-black font-semibold"}`}>
+                <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-black font-semibold"}`}>
                   Customize account profile details and manage credentials.
                 </p>
               </div>
@@ -836,19 +995,31 @@ export default function Home() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setTheme(prev => (prev === "dark" ? "light" : "dark"))}
+                onClick={() => setTheme(prev => {
+                  if (prev === "light") return "dark";
+                  if (prev === "dark") return "black";
+                  return "light";
+                })}
                 className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
-                  theme === "dark"
-                    ? "bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800"
-                    : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100 shadow-sm"
+                  theme === "black"
+                    ? "bg-[#121212] border-neutral-900 text-amber-400 hover:bg-neutral-900"
+                    : theme === "dark"
+                      ? "bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-850"
+                      : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100 shadow-sm"
                 }`}
-                title="Toggle Theme"
+                title={`Toggle Theme (Current: ${theme === "black" ? "OLED Black" : theme === "dark" ? "Dark Mode" : "Light Mode"})`}
               >
-                {theme === "dark" ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
+                {theme === "black" ? (
+                  <Sun className="w-4.5 h-4.5" />
+                ) : theme === "dark" ? (
+                  <Sparkles className="w-4.5 h-4.5" />
+                ) : (
+                  <Moon className="w-4.5 h-4.5" />
+                )}
               </button>
 
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border select-none ${
-                theme === "dark" ? "bg-slate-900/50 border-slate-800/60" : "bg-white border-slate-200 shadow-sm"
+                isDark ? "bg-slate-900/50 border-slate-800/60" : "bg-white border-slate-200 shadow-sm"
               }`}>
                 <Clock className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-bold">{timeString || "12:37"}</span>
@@ -862,9 +1033,9 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div className="hidden lg:block lg:col-span-4 space-y-6">
               <div className={`border rounded-[28px] p-5 shadow-xl transition-all duration-500 ${
-                theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
               }`}>
-                <h3 className={`text-xs font-extrabold uppercase tracking-wider mb-4 px-1.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Settings Hub</h3>
+                <h3 className={`text-xs font-extrabold uppercase tracking-wider mb-4 px-1.5 ${isDark ? "text-slate-400" : "text-black"}`}>Settings Hub</h3>
                 
                 <div className="space-y-1.5">
                   <button
@@ -872,7 +1043,7 @@ export default function Home() {
                     className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left ${
                       activeSection === "profile"
                         ? "bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 text-cyan-400 border border-cyan-500/20"
-                        : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-black hover:text-cyan-500"
+                        : isDark ? "text-slate-400 hover:text-slate-200" : "text-black hover:text-cyan-500"
                     }`}
                   >
                     <UserIcon className="w-4.5 h-4.5" />
@@ -884,7 +1055,7 @@ export default function Home() {
                     className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-xs.5 transition-all text-left ${
                       activeSection === "security"
                         ? "bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 text-cyan-400 border border-cyan-500/20"
-                        : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-black hover:text-cyan-500"
+                        : isDark ? "text-slate-400 hover:text-slate-200" : "text-black hover:text-cyan-500"
                     }`}
                   >
                     <Lock className="w-4.5 h-4.5" />
@@ -894,13 +1065,13 @@ export default function Home() {
               </div>
 
               <div className={`border rounded-[28px] p-5 shadow-xl transition-all duration-500 overflow-hidden relative ${
-                theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
               }`}>
                 <div className="absolute top-0 right-0 w-[100px] h-[100px] bg-cyan-500/5 rounded-full blur-[20px] pointer-events-none" />
 
                 <div className="flex items-center gap-2 mb-4">
                   <Award className="w-5 h-5 text-cyan-400" />
-                  <h3 className={`text-xs font-extrabold uppercase tracking-wider ${theme === "dark" ? "text-slate-350" : "text-black"}`}>Security Health</h3>
+                  <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? "text-slate-350" : "text-black"}`}>Security Health</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -913,7 +1084,7 @@ export default function Home() {
                     <h4 className="text-xs.5 font-bold tracking-wide">
                       {securityScore === 100 ? "Highly Shielded! 🔒" : "Enhancement Recommended"}
                     </h4>
-                    <p className={`text-[10px] leading-normal ${theme === "dark" ? "text-slate-400" : "text-black"}`}>
+                    <p className={`text-[10px] leading-normal ${isDark ? "text-slate-400" : "text-black"}`}>
                       {securityScore === 100 ? "Your account profile details are fully setup with robust configurations." : "Set a strong password and enable 2-Factor Authentication to reach 100% protection."}
                     </p>
                   </div>
@@ -946,7 +1117,7 @@ export default function Home() {
 
             <div className="lg:col-span-8 w-full space-y-4">
               <div className={`flex lg:hidden gap-1.5 p-1.5 rounded-2xl border transition-colors duration-500 ${
-                theme === "dark" 
+                isDark 
                   ? "bg-slate-950/40 border-slate-800/80" 
                   : "bg-white border-slate-200 shadow-sm"
               }`}>
@@ -955,10 +1126,10 @@ export default function Home() {
                   onClick={() => setActiveSection("profile")}
                   className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs.5 transition-all cursor-pointer ${
                     activeSection === "profile"
-                      ? theme === "dark"
+                      ? isDark
                         ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 text-cyan-400 border border-cyan-500/20"
                         : "bg-cyan-50 text-cyan-600 border border-cyan-200"
-                      : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
+                      : isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
                   }`}
                 >
                   <UserIcon className="w-4 h-4" />
@@ -970,10 +1141,10 @@ export default function Home() {
                   onClick={() => setActiveSection("security")}
                   className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs.5 transition-all cursor-pointer ${
                     activeSection === "security"
-                      ? theme === "dark"
+                      ? isDark
                         ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 text-cyan-400 border border-cyan-500/20"
                         : "bg-cyan-50 text-cyan-600 border border-cyan-200"
-                      : theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
+                      : isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
                   }`}
                 >
                   <Lock className="w-4 h-4" />
@@ -983,7 +1154,7 @@ export default function Home() {
               
               {activeSection === "profile" && (
                 <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
-                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                  isDark ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
                 }`}>
                   <form onSubmit={handleSaveProfile} className="space-y-6">
                     <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none">
@@ -995,7 +1166,7 @@ export default function Home() {
                     </div>
 
                     <div className={`flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl border select-none transition-colors duration-500 ${
-                      theme === "dark" ? "bg-slate-950/40 border-slate-900/60" : "bg-slate-50 border-slate-200"
+                      isDark ? "bg-slate-950/40 border-slate-900/60" : "bg-slate-50 border-slate-200"
                     }`}>
                       <div className="relative group">
                         <div className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 opacity-60 blur-xs group-hover:opacity-100 transition duration-300" />
@@ -1019,7 +1190,7 @@ export default function Home() {
 
                       <div className="text-center sm:text-left space-y-1">
                         <h3 className="text-sm.5 font-extrabold">{name}</h3>
-                        <p className={`text-[11px] leading-normal ${theme === "dark" ? "text-slate-400" : "text-black"}`}>
+                        <p className={`text-[11px] leading-normal ${isDark ? "text-slate-400" : "text-black"}`}>
                           JPG, PNG allowed. Standard resolution will be automatically configured.
                         </p>
                         
@@ -1038,13 +1209,13 @@ export default function Home() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2 text-left">
-                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Full Name</label>
+                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Full Name</label>
                           <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1054,13 +1225,13 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-2 text-left">
-                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Username</label>
+                          <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Username</label>
                           <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1071,7 +1242,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Email Address</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Email Address</label>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
                             <Mail className="w-4 h-4" />
@@ -1081,7 +1252,7 @@ export default function Home() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className={`w-full border rounded-2xl pl-12 pr-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1092,7 +1263,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Phone Number</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Phone Number</label>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
                             <Phone className="w-4 h-4" />
@@ -1102,7 +1273,7 @@ export default function Home() {
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             className={`w-full border rounded-2xl pl-12 pr-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1113,13 +1284,13 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Bio Details</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Bio Details</label>
                         <textarea
                           rows={3}
                           value={bio}
                           onChange={(e) => setBio(e.target.value)}
                           className={`w-full border rounded-2xl p-4.5 text-xs.5 outline-none transition duration-300 resize-none ${
-                            theme === "dark" 
+                            isDark 
                               ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                               : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                           }`}
@@ -1140,7 +1311,7 @@ export default function Home() {
 
               {activeSection === "security" && (
                 <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
-                  theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                  isDark ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
                 }`}>
                   <form onSubmit={handleSavePassword} className="space-y-6">
                     <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none">
@@ -1153,14 +1324,14 @@ export default function Home() {
 
                     <div className="space-y-4">
                       <div className="space-y-2 text-left relative">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Current Password</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Current Password</label>
                         <div className="relative">
                           <input
                             type={showCurrentPassword ? "text" : "password"}
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1178,14 +1349,14 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left relative">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>New Password</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>New Password</label>
                         <div className="relative">
                           <input
                             type={showNewPassword ? "text" : "password"}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1242,14 +1413,14 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-2 text-left relative">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${theme === "dark" ? "text-slate-400" : "text-black"}`}>Confirm New Password</label>
+                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Confirm New Password</label>
                         <div className="relative">
                           <input
                             type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              theme === "dark" 
+                              isDark 
                                 ? "bg-slate-950/60 border-slate-800 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
@@ -1278,7 +1449,7 @@ export default function Home() {
               )}
 
               <div className={`block lg:hidden border rounded-[28px] p-5 shadow-xl transition-all duration-500 overflow-hidden relative ${
-                theme === "dark" ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#080B12]/80 border-slate-800/80" : "bg-white border-slate-200 shadow-md"
               }`}>
                 <div className="absolute top-0 right-0 w-[100px] h-[100px] bg-cyan-500/5 rounded-full blur-[20px] pointer-events-none" />
 
@@ -1340,12 +1511,16 @@ export default function Home() {
   // --- DEFAULT VIEW: CHATROOM ---
   return (
     <div className={`w-full h-screen max-h-screen text-slate-800 flex flex-col font-sans antialiased overflow-hidden ${
-      theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-white text-slate-800"
+      theme === "black" 
+        ? "bg-black text-slate-100 black-theme" 
+        : theme === "dark" 
+          ? "bg-slate-950 text-slate-100" 
+          : "bg-white text-slate-800"
     }`}>
       
       {/* 1. TOP CHATGROUP NAVBAR */}
       <header className={`h-[60px] border-b px-6 flex items-center justify-between z-50 flex-shrink-0 ${
-        theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+        isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       }`}>
         
         {/* Left Branding */}
@@ -1360,7 +1535,7 @@ export default function Home() {
 
         {/* Center Search bar */}
         <div className={`hidden md:flex w-[260px] h-[36px] border rounded-lg items-center px-3 gap-2 ${
-          theme === "dark" ? "bg-slate-950 border-slate-800" : "bg-slate-100 border-slate-200"
+          isDark ? "bg-slate-950 border-slate-800" : "bg-slate-100 border-slate-200"
         }`}>
           <svg className="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
@@ -1443,66 +1618,199 @@ export default function Home() {
       {/* 2. AUTH / LOGOUT / REGISTER CONTAINER */}
       {!currentUser ? (
         <div className={`flex-1 flex items-center justify-center p-6 ${
-          theme === "dark" ? "bg-slate-900" : "bg-white"
+          isDark ? "bg-slate-900" : "bg-white"
         }`}>
           <div className={`w-full max-w-[390px] rounded-2xl p-8 shadow-[0_15px_40px_rgba(0,0,0,0.04)] flex flex-col items-center animate-chat-bubble border ${
-            theme === "dark" ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"
+            isDark ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"
           }`}>
+            {/* Auth Mode Toggle Tabs */}
+            <div className={`flex w-full border-b mb-5 ${
+              isDark ? "border-slate-800" : "border-slate-100"
+            }`}>
+              <button
+                type="button"
+                onClick={() => setAuthMode("register")}
+                className={`flex-1 pb-2 text-[11px] font-bold tracking-widest uppercase transition-all border-b-2 cursor-pointer ${
+                  authMode === "register"
+                    ? "border-sky-500 text-sky-500"
+                    : "border-transparent text-slate-400 hover:text-slate-500"
+                }`}
+              >
+                Register
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode("login")}
+                className={`flex-1 pb-2 text-[11px] font-bold tracking-widest uppercase transition-all border-b-2 cursor-pointer ${
+                  authMode === "login"
+                    ? "border-sky-500 text-sky-500"
+                    : "border-transparent text-slate-400 hover:text-slate-500"
+                }`}
+              >
+                Login
+              </button>
+            </div>
+
             <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/10 mb-4 text-white">
               <svg className="w-7 h-7 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
             </div>
 
-            <h2 className={`text-xl font-extrabold tracking-wide mb-1 ${theme === "dark" ? "text-slate-100" : "text-slate-800"}`}>Enter ChatGroup</h2>
-            <p className="text-[12px] text-slate-400 text-center mb-6 leading-relaxed">
-              Register a username and choose a profile photo to start chatting in real-time.
+            <h2 className={`text-xl font-extrabold tracking-wide mb-1 ${isDark ? "text-slate-100" : "text-slate-800"}`}>
+              {authMode === "register" ? "Create Account" : "Welcome Back"}
+            </h2>
+            <p className="text-[12px] text-slate-400 text-center mb-5 leading-relaxed">
+              {authMode === "register" 
+                ? "Register a username and password to start chatting in real-time."
+                : "Enter your username/email and password to join your server chat."
+              }
             </p>
 
-            <form onSubmit={handleRegister} className="w-full flex flex-col gap-5">
-              <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Select Profile Face</span>
-                <div className="grid grid-cols-6 gap-2">
-                  {PRESET_AVATARS.map((avatarItem, idx) => (
-                    <button
-                      type="button"
-                      key={idx}
-                      onClick={() => setSelectedAvatarUrl(avatarItem)}
-                      className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all active:scale-90 ${
-                        selectedAvatarUrl === avatarItem ? "border-sky-500 scale-105" : "border-transparent opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={avatarItem} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
+            {authMode === "register" ? (
+              <form onSubmit={handleRegister} className="w-full flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Select Profile Face</span>
+                  <div className="grid grid-cols-6 gap-2">
+                    {PRESET_AVATARS.map((avatarItem, idx) => (
+                      <button
+                        type="button"
+                        key={idx}
+                        onClick={() => setSelectedAvatarUrl(avatarItem)}
+                        className={`relative w-9 h-9 rounded-full overflow-hidden border-2 transition-all active:scale-90 ${
+                          selectedAvatarUrl === avatarItem ? "border-sky-500 scale-105" : "border-transparent opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        <img src={avatarItem} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Username</label>
-                <input
-                  type="text"
-                  maxLength={18}
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
-                  placeholder="e.g. Ann"
-                  className={`w-full px-4 py-2.5 border rounded-xl outline-none text-sm font-medium shadow-sm transition-colors ${
-                    theme === "dark" 
-                      ? "bg-slate-900 border-slate-800 text-white placeholder-slate-600 focus:border-sky-500/50" 
-                      : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
-                  }`}
-                  required
-                />
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Username</label>
+                  <input
+                    type="text"
+                    maxLength={18}
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    placeholder="e.g. Ann"
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
+                      isDark 
+                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                    }`}
+                    required
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={!regUsername.trim()}
-                className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 font-bold text-white rounded-xl shadow-md active:scale-95 transition-all text-sm mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Join Server
-              </button>
-            </form>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-455 uppercase tracking-widest">Email Address</label>
+                  <input
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="e.g. ann@gmail.com"
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
+                      isDark 
+                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Password</label>
+                  <input
+                    type="password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="Choose account password..."
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
+                      isDark 
+                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                    }`}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!regUsername.trim() || !regEmail.trim() || !regPassword}
+                  className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 font-bold text-white rounded-xl shadow-md active:scale-95 transition-all text-xs mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Register & Join
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Username or Email</label>
+                  <input
+                    type="text"
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
+                    placeholder="Enter username or email..."
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
+                      isDark 
+                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Password</label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter account password..."
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
+                      isDark 
+                        ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                    }`}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!loginIdentifier.trim() || !loginPassword}
+                  className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 font-bold text-white rounded-xl shadow-md active:scale-95 transition-all text-xs mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Log In & Join
+                </button>
+              </form>
+            )}
+
+            <div className="flex items-center my-3.5 w-full">
+              <div className={`flex-grow border-t ${isDark ? "border-slate-800" : "border-slate-200"}`}></div>
+              <span className={`mx-3 text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-slate-600" : "text-slate-400"}`}>or</span>
+              <div className={`flex-grow border-t ${isDark ? "border-slate-800" : "border-slate-200"}`}></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsGoogleModalOpen(true)}
+              className={`w-full py-2.5 border rounded-xl outline-none text-xs font-bold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer ${
+                isDark
+                  ? "bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-200"
+                  : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+              }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Sign in with Google
+            </button>
           </div>
         </div>
       ) : (
@@ -1512,7 +1820,7 @@ export default function Home() {
           {/* COLUMN 1: LEFT SIDEBAR MESSAGES LIST (350px) */}
           <section 
             className={`border-r flex flex-col flex-shrink-0 transition-all duration-300 ${
-              theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+              isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
             } ${
               activeContact 
                 ? "hidden md:flex w-[350px] h-full" 
@@ -1521,7 +1829,7 @@ export default function Home() {
           >
             <div className="p-4 flex flex-col gap-3 border-b border-slate-100/10">
               <div className={`w-full h-[36px] border rounded-lg flex items-center px-3 gap-2 ${
-                theme === "dark" ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
+                isDark ? "bg-slate-950 border-slate-850" : "bg-slate-50 border-slate-200"
               }`}>
                 <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
@@ -1574,24 +1882,24 @@ export default function Home() {
                       onClick={() => setActiveContact(user)}
                       className={`w-full p-3.5 flex items-center gap-3.5 rounded-xl hover-scale relative ${
                         isActive
-                          ? theme === "dark" ? "bg-slate-800" : "bg-slate-100"
-                          : theme === "dark" ? "hover:bg-slate-800/40" : "hover:bg-slate-50"
+                          ? isDark ? "bg-slate-800" : "bg-slate-100"
+                          : isDark ? "hover:bg-slate-800/40" : "hover:bg-slate-50"
                       }`}
                     >
                       <div className="relative flex-shrink-0">
                         <div className={`w-[52px] h-[52px] rounded-full overflow-hidden p-[2.5px] ${
-                          isActive ? "insta-gradient-border" : theme === "dark" ? "border border-slate-800" : "border border-slate-200"
+                          isActive ? "insta-gradient-border" : isDark ? "border border-slate-800" : "border border-slate-200"
                         }`}>
                           <img 
                             src={user.avatarUrl} 
                             className={`w-full h-full rounded-full object-cover border ${
-                              theme === "dark" ? "border-slate-900" : "border-white"
+                              isDark ? "border-slate-900" : "border-white"
                             }`} 
                           />
                         </div>
                         
                         <span className={`absolute top-0.5 right-0.5 w-3 h-3 rounded-full border-2 ${
-                          theme === "dark" ? "border-slate-900" : "border-white"
+                          isDark ? "border-slate-900" : "border-white"
                         } ${
                           isTyping ? "bg-amber-400 animate-pulse" :
                           isOnline ? "bg-emerald-500 pulse-online" :
@@ -1602,7 +1910,7 @@ export default function Home() {
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex justify-between items-center mb-0.5">
                           <span className={`text-[13.5px] font-bold tracking-wide truncate ${
-                            theme === "dark" ? "text-slate-200" : "text-slate-700"
+                            isDark ? "text-slate-200" : "text-slate-700"
                           }`}>
                             {user.username.toUpperCase()}
                           </span>
@@ -1639,7 +1947,7 @@ export default function Home() {
           {/* COLUMN 2: MIDDLE PANE - ACTIVE DIRECT MESSAGE STREAM */}
           <main 
             className={`flex-1 flex flex-col border-r transition-all duration-300 ${
-              theme === "dark" ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"
+              isDark ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"
             } ${
               !activeContact 
                 ? "hidden md:flex h-full items-center justify-center text-center p-8" 
@@ -1650,7 +1958,7 @@ export default function Home() {
               <>
                 {/* Active Chat Header */}
                 <header className={`h-[60px] px-6 border-b flex items-center justify-between flex-shrink-0 z-40 select-none ${
-                  theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                  isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
                 }`}>
                   <div className="flex items-center gap-3">
                     <button 
@@ -1675,7 +1983,7 @@ export default function Home() {
                       }`} />
                     </div>
                     <div>
-                      <h3 className={`text-sm font-bold tracking-wide ${theme === "dark" ? "text-slate-100" : "text-slate-800"}`}>{activeContact.username}</h3>
+                      <h3 className={`text-sm font-bold tracking-wide ${isDark ? "text-slate-100" : "text-slate-800"}`}>{activeContact.username}</h3>
                       <p className="text-[10px] text-slate-400 font-semibold tracking-wide">
                         {typingUsers[activeContact.username] ? "typing..." : "Active now"}
                       </p>
@@ -1696,7 +2004,7 @@ export default function Home() {
 
                 {/* Message feeds stream */}
                 <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-5 custom-scrollbar flex flex-col ${
-                  theme === "dark" ? "bg-slate-950" : "bg-white"
+                  isDark ? "bg-slate-950" : "bg-white"
                 }`}>
                   
                   {/* Sync info banner */}
@@ -1734,7 +2042,7 @@ export default function Home() {
                             className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed shadow-sm break-words relative ${
                               isMe
                                 ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-br-sm bubble-shadow-me"
-                                : theme === "dark" 
+                                : isDark 
                                   ? "bg-slate-800 text-slate-100 rounded-bl-sm bubble-shadow-them"
                                   : "bg-slate-100 text-slate-800 rounded-bl-sm bubble-shadow-them"
                             }`}
@@ -1776,7 +2084,7 @@ export default function Home() {
                         className="w-[28px] h-[28px] rounded-full object-cover border border-slate-200 flex-shrink-0 mb-1"
                       />
                       <div className={`px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shadow-sm ${
-                        theme === "dark" ? "bg-slate-800 text-slate-100" : "bg-slate-100 text-slate-800"
+                        isDark ? "bg-slate-800 text-slate-100" : "bg-slate-100 text-slate-800"
                       }`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "0ms" }} />
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -1790,7 +2098,7 @@ export default function Home() {
 
                 {/* Footer input box */}
                 <footer className={`p-4 border-t flex items-center gap-3 select-none flex-shrink-0 ${
-                  theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                  isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
                 }`}>
                   <button 
                     onClick={handleSendMockImage}
@@ -1818,7 +2126,7 @@ export default function Home() {
 
                     {isEmojiPickerOpen && (
                       <div className={`absolute bottom-[52px] left-0 w-[270px] border rounded-2xl p-3 shadow-xl flex flex-col z-50 animate-chat-bubble select-none ${
-                        theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                        isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
                       }`}>
                         <div className="flex justify-between items-center border-b border-slate-100/10 pb-2 mb-2">
                           {EMOJI_CATEGORIES.map((cat) => (
@@ -1853,7 +2161,7 @@ export default function Home() {
                   </div>
 
                   <div className={`flex-1 h-[44px] px-4 border transition-colors rounded-full flex items-center ${
-                    theme === "dark" ? "bg-slate-950 border-slate-800 focus-within:border-slate-700" : "bg-slate-50 border-slate-200 focus-within:border-slate-300"
+                    isDark ? "bg-slate-950 border-slate-800 focus-within:border-slate-700" : "bg-slate-50 border-slate-200 focus-within:border-slate-300"
                   }`}>
                     <input
                       type="text"
@@ -1870,7 +2178,7 @@ export default function Home() {
                       }}
                       placeholder="Message..."
                       className={`bg-transparent text-sm w-full outline-none font-normal ${
-                        theme === "dark" ? "text-slate-100 placeholder-slate-600" : "text-slate-800 placeholder-slate-400"
+                        isDark ? "text-slate-100 placeholder-slate-600" : "text-slate-800 placeholder-slate-400"
                       }`}
                     />
                   </div>
@@ -1904,10 +2212,10 @@ export default function Home() {
               </>
             ) : (
               <div className={`flex-1 flex flex-col items-center justify-center text-center p-8 select-none ${
-                theme === "dark" ? "bg-slate-950" : "bg-slate-50"
+                isDark ? "bg-slate-950" : "bg-slate-50"
               }`}>
                 <div className={`w-20 h-20 rounded-full border flex items-center justify-center text-slate-400 mb-4 shadow-sm ${
-                  theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                  isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
                 }`}>
                   <svg className="w-10 h-10 stroke-[1.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -1925,7 +2233,7 @@ export default function Home() {
           {activeContact && isDetailPaneOpen && (
             <aside 
               className={`w-full lg:w-[320px] border-l flex flex-col items-center p-6 text-center select-none z-45 animate-chat-bubble absolute lg:static top-0 right-0 h-full lg:h-auto shadow-2xl lg:shadow-none ${
-                theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
               }`}
             >
               <button 
@@ -1947,7 +2255,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <h2 className={`text-[18px] font-black tracking-wide mb-0.5 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>
+              <h2 className={`text-[18px] font-black tracking-wide mb-0.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>
                 {activeContact.username.toUpperCase()}
               </h2>
               <p className="text-[11px] font-extrabold tracking-widest text-slate-450 uppercase mb-4">
@@ -1964,14 +2272,14 @@ export default function Home() {
 
               <div className="flex gap-4 mt-auto pt-8 select-none">
                 <button className={`w-[52px] h-[52px] rounded-full text-slate-500 flex items-center justify-center active:scale-90 transition-all shadow-sm ${
-                  theme === "dark" ? "bg-slate-850 hover:bg-slate-800" : "bg-slate-100 hover:bg-slate-200"
+                  isDark ? "bg-slate-850 hover:bg-slate-800" : "bg-slate-100 hover:bg-slate-200"
                 }`}>
                   <svg className="w-5.5 h-5.5 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
                   </svg>
                 </button>
                 <button className={`w-[52px] h-[52px] rounded-full text-slate-500 flex items-center justify-center active:scale-90 transition-all shadow-sm ${
-                  theme === "dark" ? "bg-slate-850 hover:bg-slate-800" : "bg-slate-100 hover:bg-slate-200"
+                  isDark ? "bg-slate-850 hover:bg-slate-800" : "bg-slate-100 hover:bg-slate-200"
                 }`}>
                   <svg className="w-5.5 h-5.5 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.824-1.557-5.118-3.851-6.674-6.674l1.293-.97c.362-.272.528-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
@@ -1981,6 +2289,147 @@ export default function Home() {
             </aside>
           )}
 
+        </div>
+      )}
+
+      {isGoogleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className={`w-full max-w-[400px] mx-4 rounded-2xl shadow-2xl p-6 border transition-all ${
+            isDark 
+              ? "bg-slate-950 border-slate-800 text-slate-100" 
+              : "bg-white border-slate-200 text-slate-850"
+          }`}>
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span className="font-bold text-sm">Sign in with Google</span>
+              </div>
+              <button 
+                onClick={() => !isSigningInWithGoogle && setIsGoogleModalOpen(false)}
+                className={`p-1 rounded-full hover:bg-slate-100/10 cursor-pointer ${isSigningInWithGoogle ? "opacity-30 cursor-not-allowed" : ""}`}
+                disabled={isSigningInWithGoogle}
+              >
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {isSigningInWithGoogle ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-4">
+                <div className="w-10 h-10 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold">Signing in...</p>
+                  <p className="text-xs text-slate-400 mt-1">Connecting to Google services</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-450">Choose a Google Account to continue to ChatGroup.</p>
+                
+                {/* Mock Accounts List */}
+                <div className="space-y-2">
+                  {[
+                    {
+                      name: "Krupali Bathani",
+                      email: "krupali.bathani@gmail.com",
+                      avatar: PRESET_AVATARS[0]
+                    },
+                    {
+                      name: "Om Gadhiya",
+                      email: "omgadhiya97@gmail.com",
+                      avatar: "/om_gadhiya.png"
+                    },
+                    {
+                      name: "David Williams",
+                      email: "david.williams@gmail.com",
+                      avatar: "/david_williams.png"
+                    }
+                  ].map((acc, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleGoogleSignIn(acc.name, acc.email, acc.avatar)}
+                      className={`w-full p-3 border rounded-xl flex items-center gap-3 transition-all active:scale-[0.98] cursor-pointer text-left ${
+                        isDark 
+                          ? "border-slate-800 hover:bg-slate-900 bg-slate-950" 
+                          : "border-slate-200 hover:bg-slate-50 bg-white"
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-slate-200">
+                        {acc.avatar.startsWith("/") ? (
+                          <img src={acc.avatar} className="w-full h-full object-cover" onError={(e) => {
+                            e.currentTarget.src = PRESET_AVATARS[index];
+                          }} />
+                        ) : (
+                          <img src={acc.avatar} className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">{acc.name}</p>
+                        <p className="text-xs text-slate-400 truncate">{acc.email}</p>
+                      </div>
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Separator / Custom Email option */}
+                <div className="flex items-center my-3 w-full">
+                  <div className={`flex-grow border-t ${isDark ? "border-slate-800" : "border-slate-200"}`}></div>
+                  <span className={`mx-3 text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-slate-600" : "text-slate-400"}`}>or</span>
+                  <div className={`flex-grow border-t ${isDark ? "border-slate-800" : "border-slate-200"}`}></div>
+                </div>
+
+                {/* Custom Google Account Input */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!googleCustomEmail.trim()) return;
+                    const email = googleCustomEmail.trim().toLowerCase();
+                    const prefix = email.split("@")[0];
+                    const formattedName = prefix
+                      .split(/[\._\-]+/)
+                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(" ");
+                    const randomAvatar = PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)];
+                    handleGoogleSignIn(formattedName, email, randomAvatar);
+                  }}
+                  className="space-y-3"
+                >
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Use custom email</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. yourname@gmail.com"
+                      value={googleCustomEmail}
+                      onChange={(e) => setGoogleCustomEmail(e.target.value)}
+                      className={`w-full px-4 py-2 border rounded-xl outline-none text-xs font-semibold shadow-sm transition-colors ${
+                        isDark 
+                          ? "bg-slate-900 border-slate-800 text-white placeholder-slate-650 focus:border-sky-500/50" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50"
+                      }`}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 font-bold text-white rounded-xl shadow-md transition-all text-xs active:scale-95 cursor-pointer dark:bg-sky-600 dark:hover:bg-sky-500"
+                  >
+                    Continue
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
