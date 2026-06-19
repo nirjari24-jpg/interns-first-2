@@ -200,6 +200,7 @@ export default function Home() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
   const [registeredUsers, setRegisteredUsers] = useState<User[]>(MOCK_CONTACTS);
 
@@ -1196,7 +1197,9 @@ export default function Home() {
     e.preventDefault();
     setAuthError(null);
     if (!authEmail.trim() || !authPassword) return;
+    if (isAuthLoading) return;
 
+    setIsAuthLoading(true);
     fetch(`${API_BASE}/api/users/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1208,7 +1211,7 @@ export default function Home() {
     .then(async res => {
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || "Login failed. Please try again.");
       }
       return data;
     })
@@ -1221,6 +1224,7 @@ export default function Home() {
       setUsername(user.username);
       setAvatar(user.avatarUrl);
       setBio(user.bio || "");
+      setEmail(user.email || "");
 
       fetchUsers();
       setToast("Logged in successfully! 👋");
@@ -1228,7 +1232,16 @@ export default function Home() {
     })
     .catch(err => {
       console.error("Login error:", err);
-      setAuthError(`${err.message} (Target Server: ${API_BASE})`);
+      const msg = err.message || "Login failed. Please check your credentials.";
+      // Show a friendly message - don't expose internal server URLs
+      if (msg.includes("fetch") || msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        setAuthError("Cannot connect to server. Make sure the backend is running.");
+      } else {
+        setAuthError(msg);
+      }
+    })
+    .finally(() => {
+      setIsAuthLoading(false);
     });
   };
 
@@ -1237,6 +1250,13 @@ export default function Home() {
     e.preventDefault();
     setAuthError(null);
     if (!regUsername.trim() || !regEmail.trim() || !regPassword) return;
+    if (isAuthLoading) return;
+
+    // Basic client-side validation
+    if (regPassword.length < 6) {
+      setAuthError("Password must be at least 6 characters.");
+      return;
+    }
 
     const reqBody = {
       username: regUsername.trim(),
@@ -1247,6 +1267,7 @@ export default function Home() {
       bio: "Joined ChatGroup. Let's communicate in real-time."
     };
 
+    setIsAuthLoading(true);
     fetch(`${API_BASE}/api/users/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1255,7 +1276,7 @@ export default function Home() {
     .then(async res => {
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
+        throw new Error(data.error || "Registration failed. Please try again.");
       }
       return data;
     })
@@ -1268,6 +1289,7 @@ export default function Home() {
       setUsername(newUser.username);
       setAvatar(newUser.avatarUrl);
       setBio(newUser.bio || "");
+      setEmail(newUser.email || "");
 
       fetchUsers();
       setToast("Account created successfully! 🎉");
@@ -1282,7 +1304,15 @@ export default function Home() {
     })
     .catch(err => {
       console.error("Registration error:", err);
-      setAuthError(`${err.message} (Target Server: ${API_BASE})`);
+      const msg = err.message || "Registration failed. Please try again.";
+      if (msg.includes("fetch") || msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        setAuthError("Cannot connect to server. Make sure the backend is running.");
+      } else {
+        setAuthError(msg);
+      }
+    })
+    .finally(() => {
+      setIsAuthLoading(false);
     });
   };
 
@@ -1550,8 +1580,9 @@ export default function Home() {
     e.preventDefault();
     
     if (currentUser) {
+      // Backend /api/users/profile requires 'email' to identify the user
       const reqBody = {
-        username: currentUser.username,
+        email: (currentUser as any).email || email,
         avatarUrl: avatar,
         bio: bio.trim()
       };
@@ -2435,10 +2466,28 @@ export default function Home() {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:brightness-110 font-bold text-white rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm mt-2 cursor-pointer"
+                  disabled={isAuthLoading}
+                  className={`w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 font-bold text-white rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm mt-2 cursor-pointer ${
+                    isAuthLoading ? "opacity-70 cursor-not-allowed" : "hover:brightness-110"
+                  }`}
                 >
-                  Sign In
+                  {isAuthLoading ? "Signing In..." : "Sign In"}
                 </button>
+
+                {/* Demo credentials hint */}
+                <div className={`w-full mt-1 px-3 py-2.5 rounded-xl border text-[10px] leading-relaxed ${
+                  isDark
+                    ? "bg-sky-500/5 border-sky-500/15 text-slate-400"
+                    : "bg-sky-50 border-sky-100 text-slate-500"
+                }`}>
+                  <span className="font-extrabold text-sky-400 uppercase tracking-wider text-[9px]">Demo Accounts</span>
+                  <br />
+                  <span className="font-semibold">paul@chatgroup.com</span> · <span className="opacity-70">password123</span>
+                  <br />
+                  <span className="font-semibold">ana@chatgroup.com</span> · <span className="opacity-70">password123</span>
+                  <br />
+                  <span className="opacity-60 text-[9px]">Or sign up to create your own account.</span>
+                </div>
 
                 <p className="text-[11.5px] text-slate-450 text-center mt-3 font-semibold">
                   Don't have an account?{" "}
@@ -2525,9 +2574,12 @@ export default function Home() {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:brightness-110 font-bold text-white rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm mt-2 cursor-pointer"
+                  disabled={isAuthLoading}
+                  className={`w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 font-bold text-white rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm mt-2 cursor-pointer ${
+                    isAuthLoading ? "opacity-70 cursor-not-allowed" : "hover:brightness-110"
+                  }`}
                 >
-                  Create Account
+                  {isAuthLoading ? "Creating Account..." : "Create Account"}
                 </button>
                 <p className="text-[11.5px] text-slate-450 text-center mt-3 font-semibold">
                   Already have an account?{" "}
