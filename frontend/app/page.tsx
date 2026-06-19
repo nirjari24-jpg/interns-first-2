@@ -2286,63 +2286,7 @@ export default function Home() {
                   Join Server
                 </button>
               </form>
-            ) : (
-              /* LOGIN FORM */
-              <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5 text-left">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Username or Email</label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                      <UserIcon className="w-4 h-4" />
-                    </span>
-                    <input
-                      type="text"
-                      value={loginIdentifier}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="Enter username or email"
-                      className={`w-full pl-11 pr-4 py-3 border rounded-xl outline-none text-xs.5 font-medium transition-all ${
-                        theme === "black"
-                          ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10"
-                          : isDark 
-                            ? "bg-slate-950/60 border-slate-800 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                            : "bg-slate-50/80 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
-                      }`}
-                      required
-                    />
-                  </div>
-                </div>
 
-                <div className="flex flex-col gap-1.5 text-left">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Password</label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                      <Lock className="w-4 h-4" />
-                    </span>
-                    <input
-                      type="password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter password"
-                      className={`w-full pl-11 pr-4 py-3 border rounded-xl outline-none text-xs.5 font-medium transition-all ${
-                        theme === "black"
-                          ? "bg-black border-neutral-900 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10"
-                          : isDark 
-                            ? "bg-slate-950/60 border-slate-800 text-white placeholder-slate-700 focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                            : "bg-slate-50/80 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
-                      }`}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!loginIdentifier.trim() || !loginPassword}
-                  className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 font-extrabold text-white rounded-xl shadow-[0_8px_20px_rgba(6,182,212,0.15)] active:scale-95 transition-all text-xs.5 mt-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  Log In & Join
-                </button>
-              </form>
             )}
 
             <div className="flex items-center my-3.5 w-full">
