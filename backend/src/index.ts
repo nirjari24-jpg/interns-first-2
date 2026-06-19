@@ -30,8 +30,19 @@ const io = new Server(server, {
   }
 });
 
-// Map to track connected users and their socket IDs: username (lowercase) -> socket.id
-const userSocketMap = new Map<string, string>();
+// Map to track connected users and their socket IDs: username (lowercase) -> Set<socket.id>
+// Supports multiple devices logged in under the same account simultaneously
+const userSocketMap = new Map<string, Set<string>>();
+
+// Helper: emit to ALL sockets belonging to a user (multi-device support)
+const emitToUser = (username: string, event: string, data: any) => {
+  const sockets = userSocketMap.get(username.trim().toLowerCase());
+  if (sockets && sockets.size > 0) {
+    sockets.forEach(socketId => io.to(socketId).emit(event, data));
+    return true;
+  }
+  return false;
+};
 
 // Built-in mock contacts with secure credentials to seed the database if empty
 const MOCK_CONTACTS = [
@@ -174,10 +185,14 @@ io.on('connection', (socket) => {
   socket.on('join', (username: string) => {
     if (username) {
       const normalized = username.trim().toLowerCase();
-      userSocketMap.set(normalized, socket.id);
-      console.log(`Mapped user: ${normalized} -> socket: ${socket.id}`);
-      
-      // Broadcast status updates
+      // Add to the Set of sockets for this user (multi-device support)
+      if (!userSocketMap.has(normalized)) {
+        userSocketMap.set(normalized, new Set());
+      }
+      userSocketMap.get(normalized)!.add(socket.id);
+      console.log(`Mapped user: ${normalized} -> socket: ${socket.id} (total devices: ${userSocketMap.get(normalized)!.size})`);
+
+      // Broadcast online status
       socket.broadcast.emit('userStatus', { username: username.trim(), status: 'online' });
     }
   });
@@ -218,12 +233,16 @@ io.on('connection', (socket) => {
       // Confirm to sender
       socket.emit('messageAck', formatted);
 
-      // Deliver to recipient if online
-      const recipientSocketId = userSocketMap.get(recipient.trim().toLowerCase());
-      if (recipientSocketId) {
-        io.to(recipientSocketId).emit('newMessage', formatted);
-        console.log(`Realtime: Relayed message from ${sender} to ${recipient}`);
+      // Deliver to ALL recipient devices if online (multi-device support)
+      emitToUser(recipient, 'newMessage', formatted);
+      // Also deliver to all sender's other devices for sync
+      const senderSockets = userSocketMap.get(sender.trim().toLowerCase());
+      if (senderSockets) {
+        senderSockets.forEach(sid => {
+          if (sid !== socket.id) io.to(sid).emit('messageAck', formatted);
+        });
       }
+      console.log(`Realtime: Relayed message from ${sender} to ${recipient}`);
     } catch (err: any) {
       console.error('Error handling socket sendMessage:', err);
     }
@@ -232,18 +251,14 @@ io.on('connection', (socket) => {
   // Relay typing indicators
   socket.on('typing', (data: { from: string; to: string; isTyping: boolean }) => {
     const { from, to, isTyping } = data;
-    const recipientSocketId = userSocketMap.get(to.trim().toLowerCase());
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('typing', { from, isTyping });
-    }
+    emitToUser(to, 'typing', { from, isTyping });
   });
 
   // Relay WebRTC calling events
   socket.on('callUser', (data: { to: string; from: string; offer: any; callType: 'audio' | 'video' }) => {
     const { to, from, offer, callType } = data;
-    const recipientSocketId = userSocketMap.get(to.trim().toLowerCase());
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('incomingCall', { from, offer, callType });
+    const sent = emitToUser(to, 'incomingCall', { from, offer, callType });
+    if (sent) {
       console.log(`Call Signaling: Relayed call offer from ${from} to ${to} (${callType})`);
     } else {
       socket.emit('callError', { message: `${to} is offline.` });
@@ -252,57 +267,47 @@ io.on('connection', (socket) => {
 
   socket.on('answerCall', (data: { to: string; answer: any }) => {
     const { to, answer } = data;
-    const recipientSocketId = userSocketMap.get(to.trim().toLowerCase());
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('callAnswered', { answer });
-      console.log(`Call Signaling: Relayed call answer from to ${to}`);
-    }
+    emitToUser(to, 'callAnswered', { answer });
+    console.log(`Call Signaling: Relayed call answer to ${to}`);
   });
 
   socket.on('iceCandidate', (data: { to: string; candidate: any }) => {
     const { to, candidate } = data;
-    const recipientSocketId = userSocketMap.get(to.trim().toLowerCase());
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('iceCandidate', { candidate });
-    }
+    emitToUser(to, 'iceCandidate', { candidate });
   });
 
   socket.on('endCall', (data: { to: string }) => {
     const { to } = data;
-    const recipientSocketId = userSocketMap.get(to.trim().toLowerCase());
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('endCall');
-      console.log(`Call Signaling: Relayed endCall to ${to}`);
-    }
+    emitToUser(to, 'endCall', {});
+    console.log(`Call Signaling: Relayed endCall to ${to}`);
   });
 
   // Message Requests signaling relay
   socket.on('sendRequest', (data: { id: string; sender: string; recipient: string; status: 'pending' | 'accepted' | 'declined' }) => {
     const { recipient } = data;
-    const recipientSocketId = userSocketMap.get(recipient.trim().toLowerCase());
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit('incomingRequest', data);
-      console.log(`Socket Request: Relayed incoming request from ${data.sender} to ${recipient}`);
-    }
+    emitToUser(recipient, 'incomingRequest', data);
+    console.log(`Socket Request: Relayed incoming request from ${data.sender} to ${recipient}`);
   });
 
   socket.on('updateRequest', (data: { id: string; sender: string; recipient: string; status: 'pending' | 'accepted' | 'declined' }) => {
     const { sender } = data;
-    const senderSocketId = userSocketMap.get(sender.trim().toLowerCase());
-    if (senderSocketId) {
-      io.to(senderSocketId).emit('requestUpdated', data);
-      console.log(`Socket Request: Relayed request update for ${sender} from ${data.recipient}`);
-    }
+    emitToUser(sender, 'requestUpdated', data);
+    console.log(`Socket Request: Relayed request update for ${sender} from ${data.recipient}`);
   });
 
   // Handle user disconnect
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
-    for (const [username, socketId] of userSocketMap.entries()) {
-      if (socketId === socket.id) {
-        userSocketMap.delete(username);
-        socket.broadcast.emit('userStatus', { username, status: 'offline' });
-        console.log(`Unmapped user: ${username}`);
+    for (const [username, socketSet] of userSocketMap.entries()) {
+      if (socketSet.has(socket.id)) {
+        socketSet.delete(socket.id);
+        console.log(`Removed socket ${socket.id} from user: ${username} (remaining devices: ${socketSet.size})`);
+        if (socketSet.size === 0) {
+          // Only mark offline if NO more devices connected
+          userSocketMap.delete(username);
+          socket.broadcast.emit('userStatus', { username, status: 'offline' });
+          console.log(`User fully offline: ${username}`);
+        }
         break;
       }
     }

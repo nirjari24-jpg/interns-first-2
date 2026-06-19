@@ -829,10 +829,12 @@ export default function Home() {
                 if (!exists) {
                   // User not found in DB (backend was restarted). Re-register silently.
                   console.log("Session restored from cache. Re-syncing user to backend (DB was reset)...");
+                  // Use the stored real password if available, otherwise use a deterministic fallback
+                  const storedToken = localStorage.getItem("chatgroup_session_token");
                   const reRegBody = {
                     username: parsed.username,
                     email: parsed.email || `${parsed.username.toLowerCase().replace(/\s+/g, "")}@chatgroup.com`,
-                    password: "chatgroup_auto_restore_" + parsed.username,
+                    password: storedToken || ("chatgroup_auto_restore_" + parsed.username),
                     avatarUrl: parsed.avatarUrl,
                     category: parsed.category || "MEMBER",
                     bio: parsed.bio || "Joined ChatGroup."
@@ -1242,7 +1244,10 @@ export default function Home() {
     })
     .then(user => {
       setCurrentUser(user);
-      localStorage.setItem("chatgroup_current_user", JSON.stringify(user));
+      const userWithMeta = { ...user, email: user.email };
+      localStorage.setItem("chatgroup_current_user", JSON.stringify(userWithMeta));
+      // Store session token (password) for silent re-registration after backend restart
+      localStorage.setItem("chatgroup_session_token", authPassword.trim());
 
       // Sync settings dashboard profiles
       setName(user.username);
@@ -1307,7 +1312,10 @@ export default function Home() {
     })
     .then(newUser => {
       setCurrentUser(newUser);
-      localStorage.setItem("chatgroup_current_user", JSON.stringify(newUser));
+      const userWithMeta = { ...newUser, email: newUser.email };
+      localStorage.setItem("chatgroup_current_user", JSON.stringify(userWithMeta));
+      // Store session token (password) for silent re-registration after backend restart
+      localStorage.setItem("chatgroup_session_token", regPassword.trim());
 
       // Sync settings dashboard profiles
       setName(newUser.username);
@@ -1511,6 +1519,7 @@ export default function Home() {
     setCurrentUser(null);
     setActiveContact(MOCK_CONTACTS[0]);
     localStorage.removeItem("chatgroup_current_user");
+    localStorage.removeItem("chatgroup_session_token");
   }
 
   // Resolve chat relationship and status
