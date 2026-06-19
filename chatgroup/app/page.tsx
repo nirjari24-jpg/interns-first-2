@@ -718,7 +718,7 @@ export default function Home() {
 
   // Helper to resolve request status between current user and a contact
   const getChatRelationship = (contactUsername: string) => {
-    if (!currentUser || !currentUser.username || !contactUsername) return null;
+    if (!currentUser || !contactUsername) return null;
     const match = messageRequests.find(r => 
       (r.sender.toLowerCase() === currentUser.username.toLowerCase() && r.recipient.toLowerCase() === contactUsername.toLowerCase()) ||
       (r.sender.toLowerCase() === contactUsername.toLowerCase() && r.recipient.toLowerCase() === currentUser.username.toLowerCase())
@@ -806,36 +806,28 @@ export default function Home() {
     }
     const savedUser = localStorage.getItem("chatgroup_current_user");
     if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed && parsed.username) {
-          setCurrentUser(parsed);
-          
-          // Sync settings dashboard states with current user profile
-          setName(parsed.username);
-          setUsername(parsed.username);
-          setBio(parsed.bio || "Available to chat in real-time.");
-          setAvatar(parsed.avatarUrl);
+      const parsed = JSON.parse(savedUser);
+      setCurrentUser(parsed);
+      
+      // Sync settings dashboard states with current user profile
+      setName(parsed.username);
+      setUsername(parsed.username);
+      setBio(parsed.bio || "Available to chat in real-time.");
+      setAvatar(parsed.avatarUrl);
 
-          // Validate cached session on initial mount/reconnect
-          fetch(`${API_BASE}/api/users`)
-            .then(res => res.json())
-            .then(users => {
-              if (users && Array.isArray(users)) {
-                const exists = users.some(u => u && u.username && u.username.toLowerCase() === parsed.username.toLowerCase());
-                if (!exists) {
-                  console.warn("Stale session detected: user not found in database. Logging out.");
-                  handleLogout();
-                }
-              }
-            })
-            .catch(err => console.warn("Failed to validate cached user:", err));
-        } else {
-          localStorage.removeItem("chatgroup_current_user");
-        }
-      } catch (e) {
-        localStorage.removeItem("chatgroup_current_user");
-      }
+      // Validate cached session on initial mount/reconnect
+      fetch(`${API_BASE}/api/users`)
+        .then(res => res.json())
+        .then(users => {
+          if (users && Array.isArray(users)) {
+            const exists = users.some(u => u.username.toLowerCase() === parsed.username.toLowerCase());
+            if (!exists) {
+              console.warn("Stale session detected: user not found in database. Logging out.");
+              handleLogout();
+            }
+          }
+        })
+        .catch(err => console.warn("Failed to validate cached user:", err));
     }
 
     fetchUsers();
@@ -1430,9 +1422,6 @@ export default function Home() {
   const filteredContacts = registeredUsers.filter(
     (u) =>
       currentUser &&
-      currentUser.username &&
-      u &&
-      u.username &&
       u.username.toLowerCase() !== currentUser.username.toLowerCase() &&
       u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
