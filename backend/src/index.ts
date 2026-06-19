@@ -387,7 +387,7 @@ app.post('/api/users/login', async (req: Request, res: Response): Promise<any> =
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const isMatch = bcrypt.compareSync(password, user.password);
+    const isMatch = bcrypt.compareSync(password.trim(), user.password);
     if (!isMatch) {
       console.log(`[AUTH] Failed login: Incorrect password "${password}" for user "${user.username}" (email: ${user.email})`);
       return res.status(401).json({ error: 'Invalid email or password' });

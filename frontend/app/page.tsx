@@ -1205,7 +1205,7 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: authEmail.trim(),
-        password: authPassword
+        password: authPassword.trim()  // trim to avoid accidental leading/trailing spaces
       })
     })
     .then(async res => {
@@ -1261,7 +1261,7 @@ export default function Home() {
     const reqBody = {
       username: regUsername.trim(),
       email: regEmail.trim().toLowerCase(),
-      password: regPassword,
+      password: regPassword.trim(),  // trim to avoid accidental spaces
       avatarUrl: selectedAvatarUrl,
       category: "MEMBER",
       bio: "Joined ChatGroup. Let's communicate in real-time."
