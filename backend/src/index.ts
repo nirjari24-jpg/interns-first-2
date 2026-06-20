@@ -17,7 +17,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/chatgroup';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://nirjari24_db_user:d4D3yahgyg1FZcpg@cluster0.sehzw9g.mongodb.net/chatgroup?appName=Cluster0';
 
 // Middleware
 app.use(cors());
@@ -134,7 +134,7 @@ let mongoMemoryInstance: MongoMemoryServer | null = null;
 
 // Database Connection
 const connectDB = async () => {
-  const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/chatgroup';
+  const dbUri = process.env.MONGODB_URI || 'mongodb+srv://nirjari24_db_user:d4D3yahgyg1FZcpg@cluster0.sehzw9g.mongodb.net/chatgroup?appName=Cluster0';
   
   try {
     console.log(`Connecting to MongoDB at: ${dbUri}`);
