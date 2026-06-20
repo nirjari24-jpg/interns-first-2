@@ -145,19 +145,23 @@ export default function Home() {
       ? `${window.location.protocol}//${window.location.hostname}:5000`
       : "http://localhost:5000");
 
-  function fetchUsers() {
+  function fetchUsers(loggedInUser?: User | null) {
+    const userToExclude = loggedInUser !== undefined ? loggedInUser : currentUser;
     fetch(`${API_BASE}/api/users`)
       .then(res => res.json())
       .then(users => {
         if (users && Array.isArray(users)) {
           setRegisteredUsers(users);
           setActiveContact(prev => {
+            const otherUsers = userToExclude
+              ? users.filter(u => u && u.username && u.username.toLowerCase() !== userToExclude.username.toLowerCase())
+              : users;
             if (!prev) {
-              return users.length > 0 ? users[0] : null;
+              return otherUsers.length > 0 ? otherUsers[0] : null;
             }
-            const exists = users.some(u => u.username === prev.username);
+            const exists = otherUsers.some(u => u.username === prev.username);
             if (!exists) {
-              return users.length > 0 ? users[0] : null;
+              return otherUsers.length > 0 ? otherUsers[0] : null;
             }
             return prev;
           });
@@ -836,10 +840,12 @@ export default function Home() {
       setTheme(savedTheme);
     }
     const savedUser = localStorage.getItem("chatgroup_current_user");
+    let initialUser = null;
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
         if (parsed && parsed.username) {
+          initialUser = parsed;
           // Restore user immediately from cache — no network needed
           setCurrentUser(parsed);
           setName(parsed.username);
@@ -896,7 +902,7 @@ export default function Home() {
       }
     }
 
-    fetchUsers();
+    fetchUsers(initialUser);
     fetchRequests();
   }, [API_BASE]);
 
@@ -908,11 +914,11 @@ export default function Home() {
   // Poll users periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchUsers();
+      fetchUsers(currentUser);
       fetchRequests();
     }, 10000);
     return () => clearInterval(interval);
-  }, [API_BASE]);
+  }, [API_BASE, currentUser]);
 
   // Keep activeContactRef updated to prevent stale closures in socket events
   useEffect(() => {
@@ -1340,7 +1346,7 @@ export default function Home() {
       setBio(user.bio || "");
       setEmail(user.email || "");
 
-      fetchUsers();
+      fetchUsers(user);
       setToast("Logged in successfully! 👋");
       setTimeout(() => setToast(null), 3000);
     })
@@ -1408,7 +1414,10 @@ export default function Home() {
       setBio(newUser.bio || "");
       setEmail(newUser.email || "");
 
-      fetchUsers();
+      fetchUsers(newUser);
+      setRegUsername("");
+      setRegEmail("");
+      setRegPassword("");
       setToast("Account created successfully! 🎉");
       setTimeout(() => setToast(null), 3000);
 
@@ -1782,7 +1791,7 @@ export default function Home() {
         setCurrentUser(updatedUser);
         localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
         
-        fetchUsers();
+        fetchUsers(updatedUser);
 
         if (channelRef.current) {
           channelRef.current.postMessage({

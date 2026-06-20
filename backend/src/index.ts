@@ -672,6 +672,17 @@ app.put('/api/requests', async (req: Request, res: Response): Promise<any> => {
 });
 
 // Start Server
-server.listen(PORT, () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${PORT}`);
+  
+  // Log local network IP addresses for mobile devices
+  const os = require('os');
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        console.log(`📡 [network]: Accessible on LAN at http://${net.address}:${PORT}`);
+      }
+    }
+  }
 });
