@@ -45,7 +45,6 @@ const emitToUser = (username: string, event: string, data: any) => {
   }
   return false;
 };
-
 let mongoMemoryInstance: MongoMemoryServer | null = null;
 
 // Database Connection
@@ -490,6 +489,24 @@ app.put('/api/messages/read', async (req: Request, res: Response): Promise<any> 
     emitToUser(sender, 'messagesRead', { reader: recipient });
     
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get count of unread messages for a user
+app.get('/api/messages/unread-count', async (req: Request, res: Response): Promise<any> => {
+  const { user } = req.query;
+  if (!user) {
+    return res.status(400).json({ error: 'user query parameter is required' });
+  }
+
+  try {
+    const count = await Message.countDocuments({
+      recipient: user,
+      status: { $ne: 'read' }
+    });
+    res.json({ count });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
