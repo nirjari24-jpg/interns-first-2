@@ -28,7 +28,8 @@ import {
   Laptop,
   Check,
   AlertTriangle,
-  Award
+  Award,
+  Palette
 } from "lucide-react";
 
 // Types
@@ -55,6 +56,7 @@ interface Message {
   replyToId?: string;
   replyToSender?: string;
   replyToText?: string;
+  reactions?: { username: string; emoji: string }[];
 }
 
 interface MessageRequest {
@@ -207,6 +209,49 @@ export default function Home() {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
   const [messageActionsOpenId, setMessageActionsOpenId] = useState<string | null>(null);
+  const [chatBackground, setChatBackground] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("chatgroup_background") || "default";
+    }
+    return "default";
+  });
+
+  const getChatBgStyles = () => {
+    switch (chatBackground) {
+      case "starry":
+        return {
+          backgroundImage: "url('/starry_sky.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        };
+      case "nude-minimalist":
+        return {
+          backgroundImage: "url('/nude_minimalist.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        };
+      case "nude-cream":
+        return { backgroundColor: "#FAF8F5" };
+      case "nude-sand":
+        return { backgroundColor: "#EADBC8" };
+      case "nude-tan":
+        return { backgroundColor: "#DAC0A3" };
+      case "nude-rose":
+        return { backgroundColor: "#E8DCD5" };
+      case "solid-dark":
+        return { backgroundColor: "#121214" };
+      case "sunset":
+        return {
+          backgroundColor: "#18181b",
+          backgroundImage: "linear-gradient(135deg, rgba(217, 119, 6, 0.25) 0%, rgba(225, 29, 72, 0.25) 50%, rgba(147, 51, 234, 0.25) 100%)",
+          backgroundSize: "cover"
+        };
+      default:
+        return {};
+    }
+  };
   
   // Emoji Picker states
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -1013,6 +1058,11 @@ export default function Home() {
       setMessages((prev) => prev.map((m) => m.id === editedMsg.id ? { ...m, text: editedMsg.text, edited: true } : m));
     });
 
+    // Listen for message reaction updates from server
+    socket.on("messageReactionUpdated", (data: { id: string; reactions: { username: string; emoji: string }[] }) => {
+      setMessages((prev) => prev.map((m) => m.id === data.id ? { ...m, reactions: data.reactions } : m));
+    });
+
     // Listen for read receipts from other users
     socket.on("messagesRead", (data: { reader: string }) => {
       if (!data || !data.reader) return;
@@ -1622,6 +1672,18 @@ export default function Home() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleMessageReaction = (messageId: string, emoji: string) => {
+    if (!currentUser) return;
+
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit("messageReaction", {
+        id: messageId,
+        username: currentUser.username,
+        emoji
+      });
+    }
+  };
+
 
   const handleChatImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2078,6 +2140,18 @@ export default function Home() {
                   </button>
 
                   <button
+                    onClick={() => setActiveSection("appearance")}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-black text-xs.5 transition-all text-left border cursor-pointer ${
+                      activeSection === "appearance"
+                        ? "bg-gradient-to-r from-cyan-500/15 via-blue-500/15 to-indigo-500/15 text-cyan-400 border-cyan-500/30 shadow-md shadow-cyan-500/5"
+                        : "bg-black/40 border-slate-900 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                    }`}
+                  >
+                    <Palette className="w-4.5 h-4.5" />
+                    <span>Chat Appearance</span>
+                  </button>
+
+                  <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 p-3.5 rounded-2xl font-black text-xs.5 transition-all text-left border cursor-pointer bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300"
                   >
@@ -2171,6 +2245,20 @@ export default function Home() {
                 >
                   <Lock className="w-4 h-4" />
                   <span>Security</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection("appearance")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs.5 transition-all cursor-pointer ${
+                    activeSection === "appearance"
+                      ? isDark ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 text-cyan-400 border border-cyan-500/20"
+                        : "bg-cyan-50 text-cyan-600 border border-cyan-200"
+                      : isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
+                  }`}
+                >
+                  <Palette className="w-4 h-4" />
+                  <span>Appearance</span>
                 </button>
               </div>
 
@@ -2428,6 +2516,231 @@ export default function Home() {
                       <Key className="w-4.5 h-4.5" /> Save New Password
                     </button>
                   </form>
+                </div>
+              )}
+
+              {activeSection === "appearance" && (
+                <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
+                  isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                }`}>
+                  <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none mb-6">
+                    <div className="flex items-center gap-2">
+                      <Palette className="w-5 h-5 text-cyan-400" />
+                      <h2 className="text-lg font-black tracking-wide">Chat Appearance</h2>
+                    </div>
+                    <span className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full font-bold">Theme Settings</span>
+                  </div>
+
+                  <div className="space-y-6">
+                    <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-600"}`}>
+                      Choose a custom background style to customize your messaging panel.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {/* Default Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("default");
+                          localStorage.setItem("chatgroup_background", "default");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "default" || !chatBackground
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div className={`w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 ${
+                          theme === "black" ? "bg-black" : isDark ? "bg-[#252529]" : "bg-[#F5F5FA]"
+                        }`}>
+                          <span className={`text-[10px] uppercase font-bold tracking-wider ${isDark ? "text-slate-400" : "text-slate-600"}`}>Default Theme</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Default Background</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">Adapts dynamically to the general theme settings</span>
+                      </button>
+
+                      {/* Starry Sky Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("starry");
+                          localStorage.setItem("chatgroup_background", "starry");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "starry"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div 
+                          className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30"
+                          style={{
+                            backgroundImage: "url('/starry_sky.png')",
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                            backgroundRepeat: "no-repeat"
+                          }}
+                        >
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-200 bg-black/60 px-2 py-1 rounded">Starry Sky</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Starry Sky</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A gorgeous cosmos aesthetic filled with stars</span>
+                      </button>
+
+                      {/* Nude Organic Minimalist Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("nude-minimalist");
+                          localStorage.setItem("chatgroup_background", "nude-minimalist");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "nude-minimalist"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div 
+                          className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30"
+                          style={{
+                            backgroundImage: "url('/nude_minimalist.png')",
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                            backgroundRepeat: "no-repeat"
+                          }}
+                        >
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-800 bg-white/70 px-2 py-1 rounded">Nude Organic</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Nude Organic</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">Elegant minimalist nude background with organic flows</span>
+                      </button>
+
+                      {/* Nude Cream Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("nude-cream");
+                          localStorage.setItem("chatgroup_background", "nude-cream");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "nude-cream"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 bg-[#FAF8F5]">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-600">Nude Cream</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Nude Cream</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A clean, warm cream tone soft on the eyes</span>
+                      </button>
+
+                      {/* Nude Sand Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("nude-sand");
+                          localStorage.setItem("chatgroup_background", "nude-sand");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "nude-sand"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 bg-[#EADBC8]">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-700">Nude Sand</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Nude Sand</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A natural warm sandy beige color palette</span>
+                      </button>
+
+                      {/* Nude Tan Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("nude-tan");
+                          localStorage.setItem("chatgroup_background", "nude-tan");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "nude-tan"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 bg-[#DAC0A3]">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-800">Nude Tan</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Nude Tan</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A cozy tan tone blending warmth and balance</span>
+                      </button>
+
+                      {/* Nude Rose Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("nude-rose");
+                          localStorage.setItem("chatgroup_background", "nude-rose");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "nude-rose"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 bg-[#E8DCD5]">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-700">Nude Rose</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Nude Rose</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A soft neutral rose with clay undertones</span>
+                      </button>
+
+                      {/* Solid Dark (OLED Black) Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("solid-dark");
+                          localStorage.setItem("chatgroup_background", "solid-dark");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "solid-dark"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 bg-[#121214]">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">OLED Black</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">OLED Black</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A clean, ultra-dark tone maximizing battery life and eye comfort</span>
+                      </button>
+
+                      {/* Sunset Glow Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("sunset");
+                          localStorage.setItem("chatgroup_background", "sunset");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "sunset"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div 
+                          className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30 bg-[#18181b]"
+                          style={{
+                            backgroundImage: "linear-gradient(135deg, rgba(217, 119, 6, 0.25) 0%, rgba(225, 29, 72, 0.25) 50%, rgba(147, 51, 234, 0.25) 100%)"
+                          }}
+                        >
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-200 bg-black/60 px-2 py-1 rounded">Sunset Glow</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Sunset Glow</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">A warm, sunset-inspired gradient with a relaxing blend of hues</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -3152,9 +3465,14 @@ export default function Home() {
                   </div>
                 </header>
 
-                <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-4 custom-scrollbar flex flex-col ${
-                  theme === "black" ? "bg-black" : isDark ? "bg-[#252529]" : "bg-[#F5F5FA]"
-                }`}>
+                <div 
+                  className={`flex-1 overflow-y-auto px-6 py-6 space-y-4 custom-scrollbar flex flex-col ${
+                    chatBackground === "default" 
+                      ? theme === "black" ? "bg-black" : isDark ? "bg-[#252529]" : "bg-[#F5F5FA]"
+                      : ""
+                  }`}
+                  style={chatBackground === "default" ? {} : getChatBgStyles()}
+                >
 
                   {conversationMessages.map((msg) => {
                     const isMe = msg.sender === currentUser.username;
@@ -3177,6 +3495,31 @@ export default function Home() {
                         {/* If it is me, show actions on the left of the bubble */}
                         {isMe && (
                           <div className="flex items-center gap-1.5 opacity-0 group-hover/msg:opacity-100 transition-all duration-200 select-none mr-1.5 mb-1.5">
+                            {/* Reaction Trigger Button (Hover expands) */}
+                            <div className="relative group/react select-none">
+                              <button
+                                className="p-1 rounded-lg text-slate-400 hover:text-[#E8EA7A] hover:bg-slate-100/10 transition-all cursor-pointer"
+                                title="Add reaction"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </button>
+                              
+                              {/* Reactions Popup Panel (appears on hover) */}
+                              <div className="absolute bottom-6 right-0 hidden group-hover/react:flex items-center gap-1 p-1 rounded-xl border shadow-xl z-50 animate-chat-bubble bg-slate-900 border-slate-800">
+                                {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleMessageReaction(msg.id, emoji)}
+                                    className="w-6 h-6 flex items-center justify-center text-sm hover:scale-125 transition-transform cursor-pointer hover:bg-slate-100/10 rounded-md"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
                             <button
                               onClick={() => setReplyingToMessage(msg)}
                               title="Reply to message"
@@ -3261,6 +3604,39 @@ export default function Home() {
                               {isMe && msg.status && renderCheckmarks(msg.status)}
                             </div>
                           </div>
+
+                          {/* Reaction Badges Container */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? "justify-end self-end" : "justify-start self-start"}`}>
+                              {Object.entries(
+                                msg.reactions.reduce((acc, curr) => {
+                                  if (!acc[curr.emoji]) acc[curr.emoji] = [];
+                                  acc[curr.emoji].push(curr.username);
+                                  return acc;
+                                }, {} as Record<string, string[]>)
+                              ).map(([emoji, usernames]) => {
+                                const hasReacted = usernames.some(u => u.toLowerCase() === currentUser.username.toLowerCase());
+                                const tooltipText = usernames.join(", ");
+                                return (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleMessageReaction(msg.id, emoji)}
+                                    title={tooltipText}
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs.5 border select-none transition-all active:scale-95 cursor-pointer ${
+                                      hasReacted
+                                        ? "bg-purple-500/20 border-purple-500/40 text-purple-200"
+                                        : isDark
+                                          ? "bg-slate-800/80 border-slate-700/60 text-slate-350 hover:bg-slate-700"
+                                          : "bg-slate-100 border-slate-200 text-slate-650 hover:bg-slate-200"
+                                    }`}
+                                  >
+                                    <span className="text-[11px]">{emoji}</span>
+                                    <span className="text-[9.5px] font-black">{usernames.length}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         {/* If it is not me, show actions on the right of the bubble */}
@@ -3284,6 +3660,31 @@ export default function Home() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
                               </svg>
                             </button>
+
+                            {/* Reaction Trigger Button (Hover expands) */}
+                            <div className="relative group/react select-none">
+                              <button
+                                className="p-1 rounded-lg text-slate-400 hover:text-[#E8EA7A] hover:bg-slate-100/10 transition-all cursor-pointer"
+                                title="Add reaction"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </button>
+                              
+                              {/* Reactions Popup Panel (appears on hover) */}
+                              <div className="absolute bottom-6 left-0 hidden group-hover/react:flex items-center gap-1 p-1 rounded-xl border shadow-xl z-50 animate-chat-bubble bg-slate-900 border-slate-800">
+                                {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleMessageReaction(msg.id, emoji)}
+                                    className="w-6 h-6 flex items-center justify-center text-sm hover:scale-125 transition-transform cursor-pointer hover:bg-slate-100/10 rounded-md"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
 

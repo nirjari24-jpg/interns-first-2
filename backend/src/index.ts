@@ -230,6 +230,55 @@ io.on('connection', (socket) => {
     }
   });
 
+  // When a user reacts to a message in real-time
+  socket.on('messageReaction', async (data: {
+    id: string;
+    username: string;
+    emoji: string;
+  }) => {
+    const { id, username, emoji } = data;
+    if (!id || !username || !emoji) return;
+
+    try {
+      const message = await Message.findById(id);
+      if (message) {
+        if (!message.reactions) {
+          message.reactions = [];
+        }
+        
+        const existingIndex = message.reactions.findIndex((r: any) => r.username === username);
+        if (existingIndex > -1) {
+          if (message.reactions[existingIndex].emoji === emoji) {
+            // Toggle off
+            message.reactions.splice(existingIndex, 1);
+          } else {
+            // Replace emoji
+            message.reactions[existingIndex].emoji = emoji;
+          }
+        } else {
+          // Add new
+          message.reactions.push({ username, emoji });
+        }
+        
+        await message.save();
+
+        const formatted = {
+          id: message._id.toString(),
+          sender: message.sender,
+          recipient: message.recipient,
+          reactions: message.reactions
+        };
+
+        // Emit reaction update to both recipient and sender
+        emitToUser(message.recipient, 'messageReactionUpdated', formatted);
+        emitToUser(message.sender, 'messageReactionUpdated', formatted);
+        console.log(`Realtime: Message reaction updated, ID: ${id}`);
+      }
+    } catch (err: any) {
+      console.error('Error handling socket messageReaction:', err);
+    }
+  });
+
   // Relay typing indicators
   socket.on('typing', (data: { from: string; to: string; isTyping: boolean }) => {
     const { from, to, isTyping } = data;
@@ -487,7 +536,8 @@ app.get('/api/messages', async (req: Request, res: Response): Promise<any> => {
       forwarded: msg.forwarded,
       replyToId: msg.replyToId,
       replyToSender: msg.replyToSender,
-      replyToText: msg.replyToText
+      replyToText: msg.replyToText,
+      reactions: msg.reactions
     }));
 
     res.json(formattedMessages);
@@ -530,7 +580,8 @@ app.post('/api/messages', async (req: Request, res: Response): Promise<any> => {
       replyToId: message.replyToId,
       replyToSender: message.replyToSender,
       replyToText: message.replyToText,
-      edited: message.edited
+      edited: message.edited,
+      reactions: message.reactions
     };
 
     res.json(formatted);
@@ -565,7 +616,8 @@ app.put('/api/messages/:id', async (req: Request, res: Response): Promise<any> =
       replyToId: message.replyToId,
       replyToSender: message.replyToSender,
       replyToText: message.replyToText,
-      edited: message.edited
+      edited: message.edited,
+      reactions: message.reactions
     };
 
     res.json(formatted);
