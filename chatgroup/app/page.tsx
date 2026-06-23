@@ -1818,7 +1818,7 @@ export default function Home() {
   const securityScore = getSecurityScore();
 
   const getPasswordStrength = () => {
-    if (!newPassword) return { score: 0, label: "None", color: "bg-slate-800", text: "text-slate-500" };
+    if (!newPassword) return { score: 0, label: "None", color: "bg-[#2E2E33]", text: "text-slate-500" };
     let score = 0;
     if (hasMinLength) score++;
     if (hasCapital) score++;
@@ -1827,7 +1827,7 @@ export default function Home() {
 
     switch (score) {
       case 1: return { score: 33, label: "Weak ⚠️", color: "bg-rose-500/80", text: "text-rose-400" };
-      case 2: return { score: 66, label: "Medium ⚡", color: "bg-amber-500/80", text: "text-amber-400" };
+      case 2: return { score: 66, label: "Medium ⚡", color: "bg-amber-500/80", text: "text-[#E8EA7A]" };
       case 3: return { score: 100, label: "Strong ✨", color: "bg-emerald-500/80", text: "text-emerald-400" };
       default: return { score: 10, label: "Too Short ❌", color: "bg-rose-600/85", text: "text-rose-500" };
     }
@@ -1918,7 +1918,7 @@ export default function Home() {
       <main className={`min-h-screen w-full transition-colors duration-500 flex flex-col justify-start items-center p-4 sm:p-6 md:p-12 font-sans relative overflow-y-auto ${
         theme === "black" 
           ? "bg-black text-[#E4E6EB] black-theme" 
-          : isDark ? "bg-[#04060A] text-[#E4E6EB]" 
+          : isDark ? "bg-[#252529] text-[#FFFFFF]" 
             : "bg-slate-50 text-black light-theme"
       }`}>
         
@@ -1934,16 +1934,16 @@ export default function Home() {
         {/* Background glowing particles (Aurora effect) */}
         <div className="absolute inset-0 pointer-events-none z-0">
           <div className={`absolute top-[5%] left-[10%] w-[380px] h-[380px] rounded-full blur-[120px] transition-opacity duration-700 ${
-            isDark ? "bg-cyan-500/10 opacity-100" : "bg-cyan-400/5 opacity-80"
+            isDark ? "bg-[#E8EA7A]/10 opacity-100" : "bg-[#E8EA7A]/5 opacity-80"
           }`} />
           <div className={`absolute bottom-[10%] right-[10%] w-[450px] h-[450px] rounded-full blur-[140px] transition-opacity duration-700 ${
-            isDark ? "bg-purple-500/10 opacity-100" : "bg-purple-400/5 opacity-80"
+            isDark ? "bg-[#3D1B5C]/10 opacity-100" : "bg-[#3D1B5C]/5 opacity-80"
           }`} />
         </div>
 
         {/* Floating Toast Notification */}
         {toast && (
-          <div className="fixed top-8 z-50 bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 font-extrabold px-6 py-4 rounded-full shadow-[0_12px_40px_rgba(6,182,212,0.4)] text-sm tracking-wide flex items-center gap-2.5 animate-bounce border border-white/20">
+          <div className="fixed top-8 z-50 bg-[#E8EA7A] text-[#1E1E22] font-extrabold px-6 py-4 rounded-full shadow-md shadow-[#E8EA7A]/10 text-sm tracking-wide flex items-center gap-2.5 animate-bounce border border-white/20">
             <CheckCheck className="w-5 h-5 text-slate-950" />
             <span>{toast}</span>
           </div>
@@ -1953,19 +1953,19 @@ export default function Home() {
           
           {/* Top Header Panel */}
           <div className={`relative border rounded-3xl p-5 md:p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden transition-colors duration-500 ${
-            isDark ? "bg-gradient-to-r from-black via-[#08080C] to-black border-slate-900" 
+            isDark ? "bg-[#1F1F23] border-[#2E2E33]" 
               : "bg-white border-slate-200"
           }`}>
             
-            <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
-            <div className="absolute bottom-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+            <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-[#E8EA7A] to-transparent" />
+            <div className="absolute bottom-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-[#3D1B5C] to-transparent" />
 
             <div className="flex items-center gap-4 text-center sm:text-left flex-col sm:flex-row">
               {/* Back to Chat Trigger */}
               <button
                 onClick={() => setCurrentView("chat")}
                 className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
-                  isDark ? "bg-slate-900 border-slate-800 text-cyan-400 hover:bg-slate-800"
+                  isDark ? "bg-[#2E2E33] border-[#2E2E33] text-[#E8EA7A] hover:bg-[#35353B]"
                     : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100 shadow-sm"
                 }`}
                 title="Back to ChatRoom"
@@ -1973,12 +1973,12 @@ export default function Home() {
                 <ArrowRight className="w-4.5 h-4.5 rotate-180" />
               </button>
               
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center flex-shrink-0 text-cyan-400 shadow-inner">
+              <div className="w-12 h-12 rounded-2xl bg-[#E8EA7A]/10 border border-cyan-500/25 flex items-center justify-center flex-shrink-0 text-[#E8EA7A] shadow-inner">
                 <Fingerprint className="w-6 h-6 animate-pulse" />
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight">
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400 dark:from-white dark:to-slate-400 from-slate-950 to-slate-700">
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#FFFFFF] via-[#A0A0A0] to-[#FFFFFF] dark:from-white dark:to-slate-400 from-slate-950 to-slate-700">
                     Settings Dashboard
                   </span>
                 </h1>
@@ -2000,8 +2000,8 @@ export default function Home() {
                 }}
                 className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
                   theme === "black"
-                    ? "bg-[#121212] border-neutral-900 text-amber-400 hover:bg-neutral-900"
-                    : isDark ? "bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-850"
+                    ? "bg-[#121212] border-neutral-900 text-[#E8EA7A] hover:bg-neutral-900"
+                    : isDark ? "bg-[#2E2E33] border-[#2E2E33] text-[#E8EA7A] hover:bg-[#35353B]"
                       : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100 shadow-sm"
                 }`}
                 title={`Toggle Theme (Current: ${theme === "black" ? "OLED Black" : isDark ? "Dark Mode" : "Light Mode"})`}
@@ -2016,9 +2016,9 @@ export default function Home() {
               </button>
 
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border select-none ${
-                isDark ? "bg-slate-900/50 border-slate-800/60" : "bg-white border-slate-200 shadow-sm"
+                isDark ? "bg-[#1F1F23]/80 border-[#2E2E33]" : "bg-white border-slate-200 shadow-sm"
               }`}>
-                <Clock className="w-4 h-4 text-cyan-400" />
+                <Clock className="w-4 h-4 text-[#E8EA7A]" />
                 <span className="text-xs font-bold">{timeString || "12:37"}</span>
                 <div className="w-px h-3 bg-slate-850" />
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -2031,10 +2031,10 @@ export default function Home() {
             <div className="hidden lg:block lg:col-span-4 space-y-6">
               {/* User Profile Card */}
               <div className={`border rounded-[28px] p-5 shadow-xl transition-all duration-500 flex flex-col items-center text-center ${
-                isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-md"
               }`}>
                 <div className="relative group mb-3">
-                  <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 opacity-60 blur-xs" />
+                  <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-[#E8EA7A] to-[#3D1B5C] opacity-60 blur-xs" />
                   <div className="relative w-16 h-16 rounded-full overflow-hidden border-[2.5px] border-slate-950 bg-slate-900">
                     <img
                       src={currentUser?.avatarUrl || avatar}
@@ -2048,7 +2048,7 @@ export default function Home() {
               </div>
 
               <div className={`border rounded-[28px] p-5 shadow-xl transition-all duration-500 ${
-                isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-md"
               }`}>
                 <h3 className={`text-xs font-extrabold uppercase tracking-wider mb-4 px-1.5 ${isDark ? "text-slate-400" : "text-black"}`}>Settings Hub</h3>
                 
@@ -2057,8 +2057,8 @@ export default function Home() {
                     onClick={() => setActiveSection("profile")}
                     className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-black text-xs.5 transition-all text-left border cursor-pointer ${
                       activeSection === "profile"
-                        ? "bg-gradient-to-r from-cyan-500/15 via-blue-500/15 to-indigo-500/15 text-cyan-400 border-cyan-500/30 shadow-md shadow-cyan-500/5"
-                        : "bg-black/40 border-slate-900 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                        ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15 shadow-sm shadow-[#E8EA7A]/5"
+                        : "bg-transparent border-transparent text-slate-400 hover:text-[#FFFFFF] hover:bg-[#35353B]/50"
                     }`}
                   >
                     <UserIcon className="w-4.5 h-4.5" />
@@ -2069,8 +2069,8 @@ export default function Home() {
                     onClick={() => setActiveSection("security")}
                     className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-black text-xs.5 transition-all text-left border cursor-pointer ${
                       activeSection === "security"
-                        ? "bg-gradient-to-r from-cyan-500/15 via-blue-500/15 to-indigo-500/15 text-cyan-400 border-cyan-500/30 shadow-md shadow-cyan-500/5"
-                        : "bg-black/40 border-slate-900 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                        ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15 shadow-sm shadow-[#E8EA7A]/5"
+                        : "bg-transparent border-transparent text-slate-400 hover:text-[#FFFFFF] hover:bg-[#35353B]/50"
                     }`}
                   >
                     <Lock className="w-4.5 h-4.5" />
@@ -2090,18 +2090,18 @@ export default function Home() {
               </div>
 
               <div className={`border rounded-[28px] p-5 shadow-xl transition-all duration-500 overflow-hidden relative ${
-                isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-md"
               }`}>
-                <div className="absolute top-0 right-0 w-[100px] h-[100px] bg-cyan-500/5 rounded-full blur-[20px] pointer-events-none" />
+                <div className="absolute top-0 right-0 w-[100px] h-[100px] bg-[#E8EA7A]/5 rounded-full blur-[20px] pointer-events-none" />
 
                 <div className="flex items-center gap-2 mb-4">
-                  <Award className="w-5 h-5 text-cyan-400" />
+                  <Award className="w-5 h-5 text-[#E8EA7A]" />
                   <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? "text-slate-350" : "text-black"}`}>Security Health</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="relative w-18 h-18 rounded-full border-4 border-slate-800 flex items-center justify-center flex-shrink-0">
-                    <div className="absolute inset-0 rounded-full border-4 border-cyan-400 transition-all duration-500" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${securityScore}%, 0 ${securityScore}%)` }} />
+                  <div className="relative w-18 h-18 rounded-full border-4 border-[#2E2E33] flex items-center justify-center flex-shrink-0">
+                    <div className="absolute inset-0 rounded-full border-4 border-[#E8EA7A] transition-all duration-500" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${securityScore}%, 0 ${securityScore}%)` }} />
                     <span className="text-base font-black">{securityScore}%</span>
                   </div>
 
@@ -2115,7 +2115,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-850/50 flex items-center justify-between">
+                <div className="mt-5 pt-4 border-t border-[#2E2E33] flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-4.5 h-4.5 text-emerald-400" />
                     <span className="text-[11px] font-bold">2-Factor Authentication</span>
@@ -2129,7 +2129,7 @@ export default function Home() {
                       setTimeout(() => setToast(null), 2500);
                     }}
                     className={`w-10 h-5.5 rounded-full p-0.5 transition-colors duration-300 relative ${
-                      twoFactor ? "bg-cyan-500" : "bg-slate-800"
+                      twoFactor ? "bg-[#E8EA7A]" : "bg-[#2E2E33]"
                     }`}
                   >
                     <div className={`w-4.5 h-4.5 rounded-full bg-slate-950 transition-transform duration-300 ${
@@ -2142,7 +2142,7 @@ export default function Home() {
 
             <div className="lg:col-span-8 w-full space-y-4">
               <div className={`flex lg:hidden gap-1.5 p-1.5 rounded-2xl border transition-colors duration-500 ${
-                isDark ? "bg-slate-950/40 border-slate-800/80" 
+                isDark ? "bg-[#1F1F23]/80 border-[#2E2E33]" 
                   : "bg-white border-slate-200 shadow-sm"
               }`}>
                 <button
@@ -2150,8 +2150,8 @@ export default function Home() {
                   onClick={() => setActiveSection("profile")}
                   className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs.5 transition-all cursor-pointer ${
                     activeSection === "profile"
-                      ? isDark ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 text-cyan-400 border border-cyan-500/20"
-                        : "bg-cyan-50 text-cyan-600 border border-cyan-200"
+                      ? isDark ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15"
+                        : "bg-[#E8EA7A]/10 text-[#E8EA7A] border border-[#E8EA7A]/20"
                       : isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
                   }`}
                 >
@@ -2164,8 +2164,8 @@ export default function Home() {
                   onClick={() => setActiveSection("security")}
                   className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs.5 transition-all cursor-pointer ${
                     activeSection === "security"
-                      ? isDark ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 text-cyan-400 border border-cyan-500/20"
-                        : "bg-cyan-50 text-cyan-600 border border-cyan-200"
+                      ? isDark ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15"
+                        : "bg-[#E8EA7A]/10 text-[#E8EA7A] border border-[#E8EA7A]/20"
                       : isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500"
                   }`}
                 >
@@ -2176,11 +2176,11 @@ export default function Home() {
 
               {/* Mobile User Profile Card & Log Out */}
               <div className={`flex lg:hidden flex-col sm:flex-row items-center justify-between gap-4 p-4 border rounded-[24px] transition-all duration-500 ${
-                isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+                isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-sm"
               }`}>
                 <div className="flex items-center gap-3.5 text-left w-full sm:w-auto">
                   <div className="relative group flex-shrink-0">
-                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 opacity-60 blur-xs" />
+                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-[#E8EA7A] to-[#3D1B5C] opacity-60 blur-xs" />
                     <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-slate-950 bg-slate-900">
                       <img
                         src={currentUser?.avatarUrl || avatar}
@@ -2208,15 +2208,15 @@ export default function Home() {
               
               {activeSection === "profile" && (
                 <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
-                  isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                  isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-md"
                 }`}>
                   <form onSubmit={handleSaveProfile} className="space-y-6">
-                    <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none">
+                    <div className="border-b border-[#2E2E33] pb-4 flex items-center justify-between select-none">
                       <div className="flex items-center gap-2">
-                        <UserIcon className="w-5 h-5 text-cyan-400" />
+                        <UserIcon className="w-5 h-5 text-[#E8EA7A]" />
                         <h2 className="text-lg font-black tracking-wide">Account Profile Details</h2>
                       </div>
-                      <span className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full font-bold">Information</span>
+                      <span className="text-[10px] text-slate-500 bg-slate-900 border border-[#2E2E33] px-2.5 py-1 rounded-full font-bold">Information</span>
                     </div>
 
                     <div className="space-y-4">
@@ -2228,8 +2228,8 @@ export default function Home() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                              isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" 
+                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"
                             }`}
                             placeholder="Your full name..."
                             required
@@ -2243,7 +2243,7 @@ export default function Home() {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             onBlur={checkUsernameAvailability}
-                            className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"}`}
+                            className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"}`}
                             placeholder="Your username..."
                             required
                           />
@@ -2264,8 +2264,8 @@ export default function Home() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className={`w-full border rounded-2xl pl-12 pr-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                              isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" 
+                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"
                             }`}
                             placeholder="your.email@domain.com"
                             required
@@ -2280,8 +2280,8 @@ export default function Home() {
                           value={bio}
                           onChange={(e) => setBio(e.target.value)}
                           className={`w-full border rounded-2xl p-4.5 text-xs.5 outline-none transition duration-300 resize-none ${
-                            isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                              : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                            isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" 
+                              : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"
                           }`}
                           placeholder="Write something about yourself..."
                         />
@@ -2290,7 +2290,7 @@ export default function Home() {
 
                     <button
                       type="submit"
-                      className="w-full group bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-slate-950 font-black py-4 rounded-2xl text-xs.5 transition-all shadow-[0_8px_25px_rgba(6,182,212,0.2)] flex items-center justify-center gap-1.5 mt-4 select-none cursor-pointer"
+                      className="w-full group bg-[#E8EA7A] hover:bg-[#F3F59B] text-[#1E1E22] font-black py-4 rounded-2xl text-xs.5 transition-all shadow-md flex items-center justify-center gap-1.5 mt-4 select-none cursor-pointer"
                     >
                       <Save className="w-4.5 h-4.5" /> Save Account Profile Details
                     </button>
@@ -2300,15 +2300,15 @@ export default function Home() {
 
               {activeSection === "security" && (
                 <div className={`border rounded-[32px] p-6 md:p-8 shadow-2xl transition-all duration-500 relative overflow-hidden ${
-                  isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                  isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-md"
                 }`}>
                   <form onSubmit={handleSavePassword} className="space-y-6">
-                    <div className="border-b border-slate-850/50 pb-4 flex items-center justify-between select-none">
+                    <div className="border-b border-[#2E2E33] pb-4 flex items-center justify-between select-none">
                       <div className="flex items-center gap-2">
-                        <Lock className="w-5 h-5 text-indigo-400" />
+                        <Lock className="w-5 h-5 text-[#E8EA7A]" />
                         <h2 className="text-lg font-black tracking-wide">Change Password Settings</h2>
                       </div>
-                      <span className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full font-bold">Authentication</span>
+                      <span className="text-[10px] text-slate-500 bg-slate-900 border border-[#2E2E33] px-2.5 py-1 rounded-full font-bold">Authentication</span>
                     </div>
 
                     <div className="space-y-4">
@@ -2320,8 +2320,8 @@ export default function Home() {
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                              isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" 
+                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"
                             }`}
                             placeholder="Type current password..."
                             required
@@ -2329,7 +2329,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#E8EA7A] transition-colors"
                           >
                             {showCurrentPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                           </button>
@@ -2343,14 +2343,14 @@ export default function Home() {
                             type={showNewPassword ? "text" : "password"}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"}`}
+                            className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"}`}
                             placeholder="Type new secure password..."
                             required
                           />
                           <button
                             type="button"
                             onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#E8EA7A] transition-colors"
                           >
                             {showNewPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                           </button>
@@ -2404,8 +2404,8 @@ export default function Home() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
+                              isDark ? "bg-[#252529] border-[#2E2E33] text-white focus:border-[#E8EA7A]/80 focus:ring-2 focus:ring-[#E8EA7A]/10" 
+                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-[#E8EA7A] focus:ring-2 focus:ring-[#E8EA7A]/10"
                             }`}
                             placeholder="Verify new secure password..."
                             required
@@ -2413,7 +2413,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#E8EA7A] transition-colors"
                           >
                             {showConfirmPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                           </button>
@@ -2423,7 +2423,7 @@ export default function Home() {
 
                     <button
                       type="submit"
-                      className="w-full bg-white text-slate-950 font-black py-4 rounded-2xl text-xs.5 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 mt-4 shadow-md select-none cursor-pointer"
+                      className="w-full bg-[#E8EA7A] text-[#1E1E22] font-black py-4 rounded-2xl text-xs.5 hover:bg-[#F3F59B] transition-all flex items-center justify-center gap-1.5 mt-4 shadow-md select-none cursor-pointer"
                     >
                       <Key className="w-4.5 h-4.5" /> Save New Password
                     </button>
@@ -2432,18 +2432,18 @@ export default function Home() {
               )}
 
               <div className={`block lg:hidden border rounded-[28px] p-5 shadow-xl transition-all duration-500 overflow-hidden relative ${
-                isDark ? "bg-[#0A0A0C]/90 border-slate-900" : "bg-white border-slate-200 shadow-md"
+                isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-slate-200 shadow-md"
               }`}>
-                <div className="absolute top-0 right-0 w-[100px] h-[100px] bg-cyan-500/5 rounded-full blur-[20px] pointer-events-none" />
+                <div className="absolute top-0 right-0 w-[100px] h-[100px] bg-[#E8EA7A]/5 rounded-full blur-[20px] pointer-events-none" />
 
                 <div className="flex items-center gap-2 mb-4">
-                  <Award className="w-5 h-5 text-cyan-400" />
+                  <Award className="w-5 h-5 text-[#E8EA7A]" />
                   <h3 className="text-xs font-extrabold uppercase text-slate-350 tracking-wider">Security Health</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="relative w-18 h-18 rounded-full border-4 border-slate-800 flex items-center justify-center flex-shrink-0">
-                    <div className="absolute inset-0 rounded-full border-4 border-cyan-400 transition-all duration-500" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${securityScore}%, 0 ${securityScore}%)` }} />
+                  <div className="relative w-18 h-18 rounded-full border-4 border-[#2E2E33] flex items-center justify-center flex-shrink-0">
+                    <div className="absolute inset-0 rounded-full border-4 border-[#E8EA7A] transition-all duration-500" style={{ clipPath: `polygon(0 0, 100% 0, 100% ${securityScore}%, 0 ${securityScore}%)` }} />
                     <span className="text-base font-black">{securityScore}%</span>
                   </div>
 
@@ -2457,7 +2457,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-850/50 flex items-center justify-between">
+                <div className="mt-5 pt-4 border-t border-[#2E2E33] flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-4.5 h-4.5 text-emerald-400" />
                     <span className="text-[11px] font-bold">2-Factor Authentication</span>
@@ -2471,7 +2471,7 @@ export default function Home() {
                       setTimeout(() => setToast(null), 2500);
                     }}
                     className={`w-10 h-5.5 rounded-full p-0.5 transition-colors duration-300 relative ${
-                      twoFactor ? "bg-cyan-500" : "bg-slate-800"
+                      twoFactor ? "bg-[#E8EA7A]" : "bg-[#2E2E33]"
                     }`}
                   >
                     <div className={`w-4.5 h-4.5 rounded-full bg-slate-950 transition-transform duration-300 ${
@@ -2519,7 +2519,7 @@ export default function Home() {
           <div className={`hidden md:flex w-[260px] h-[36px] border rounded-lg items-center px-3 gap-2 ${
             theme === "black"
               ? "bg-[#0a0a0a] border-neutral-900"
-              : isDark ? "bg-slate-950 border-slate-800" : "bg-slate-100 border-slate-200"
+              : isDark ? "bg-slate-950 border-[#2E2E33]" : "bg-slate-100 border-slate-200"
           }`}>
             <svg className="w-4.5 h-4.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
@@ -2683,7 +2683,7 @@ export default function Home() {
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="e.g. paul or paul@chatgroup.com"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
                         : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
                     }`}
                     required
@@ -2698,7 +2698,7 @@ export default function Home() {
                     onChange={(e) => setAuthPassword(e.target.value)}
                     placeholder="••••••••"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
                         : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
                     }`}
                     required
@@ -2761,7 +2761,7 @@ export default function Home() {
                     onChange={(e) => setRegUsername(e.target.value)}
                     placeholder="e.g. ann123"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
                         : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
                     }`}
                     required
@@ -2776,7 +2776,7 @@ export default function Home() {
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="e.g. ann@example.com"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
                         : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
                     }`}
                     required
@@ -2792,7 +2792,7 @@ export default function Home() {
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="Create a password"
                       className={`w-full pl-4 pr-11 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                        isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
+                        isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
                           : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
                       }`}
                       required
@@ -3035,7 +3035,7 @@ export default function Home() {
                         
                         <div className={`text-[11.5px] truncate leading-snug ${isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}`}>
                           {isTyping ? (
-                            <span className="text-purple-500 font-bold animate-pulse">typing...</span>
+                            <span className="text-[#E8EA7A] font-bold animate-pulse">typing...</span>
                           ) : rel && rel.status === 'pending' ? (
                             rel.sender.toLowerCase() === currentUser.username.toLowerCase()
                               ? <span className="text-amber-500 font-bold">Request Pending ✉️</span>
@@ -3307,7 +3307,7 @@ export default function Home() {
                         className="w-[28px] h-[28px] rounded-full object-cover border border-slate-200 flex-shrink-0 mb-1"
                       />
                       <div className={`px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shadow-sm ${
-                        isDark ? "bg-slate-800 text-slate-100" : "bg-slate-100 text-slate-800"
+                        isDark ? "bg-[#2E2E33] text-slate-100" : "bg-slate-100 text-slate-800"
                       }`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "0ms" }} />
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -3325,7 +3325,7 @@ export default function Home() {
                     {/* Message Action Preview Bar */}
                     {(replyingToMessage || editingMessage) && (
                       <div className={`mb-2 px-4 py-2.5 rounded-xl border flex items-center justify-between animate-chat-bubble ${
-                        isDark ? "bg-slate-900 border-slate-800 text-slate-350" : "bg-slate-100 border-slate-200 text-slate-700"
+                        isDark ? "bg-slate-900 border-[#2E2E33] text-slate-350" : "bg-slate-100 border-slate-200 text-slate-700"
                       }`}>
                         <div className="flex items-center gap-2 overflow-hidden mr-4">
                           {replyingToMessage ? (
@@ -3367,7 +3367,7 @@ export default function Home() {
                       </div>
                     )}
                     <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg ${
-                      isDark ? "bg-slate-905/90 border-slate-800/80 backdrop-blur-md shadow-black/20" 
+                      isDark ? "bg-slate-905/90 border-[#2E2E33]/80 backdrop-blur-md shadow-black/20" 
                         : "bg-white/95 border-slate-200 backdrop-blur-md shadow-slate-200/50"
                     }`}>
                       <input
@@ -3416,7 +3416,7 @@ export default function Home() {
 
                         {isEmojiPickerOpen && (
                           <div className={`absolute bottom-[52px] left-0 w-[270px] border rounded-2xl p-3 shadow-xl flex flex-col z-50 animate-chat-bubble select-none ${
-                            isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                            isDark ? "bg-slate-900 border-[#2E2E33]" : "bg-white border-slate-200"
                           }`}>
                             <div className="flex justify-between items-center border-b border-slate-150/10 pb-2 mb-2">
                               {EMOJI_CATEGORIES.map((cat) => (
@@ -3465,7 +3465,7 @@ export default function Home() {
                           }}
                           placeholder="Type a message..."
                           className={`w-full pl-4 pr-12 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                            isDark ? "bg-[#04060a] border-slate-850 text-white placeholder-slate-500 focus:border-sky-500/50 focus:ring-sky-500/5" 
+                            isDark ? "bg-[#04060a] border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500/50 focus:ring-sky-500/5" 
                               : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500/50 focus:ring-sky-500/5"
                           }`}
                         />
@@ -3484,7 +3484,7 @@ export default function Home() {
                 ) : (
                   <div className="p-4 bg-transparent select-none flex-shrink-0 z-40">
                     <div className={`p-6 rounded-[28px] border flex flex-col items-center justify-center text-center gap-4 shadow-lg ${
-                      isDark ? "bg-[#080B12]/90 border-slate-800/80 backdrop-blur-md shadow-black/20" 
+                      isDark ? "bg-[#080B12]/90 border-[#2E2E33]/80 backdrop-blur-md shadow-black/20" 
                         : "bg-white/95 border-slate-200 backdrop-blur-md shadow-slate-200/50"
                     }`}>
                       {activeRelationship === null && (
@@ -3546,7 +3546,7 @@ export default function Home() {
                           </p>
                           <button
                             onClick={() => sendChatRequest(activeContact.username)}
-                            className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-2xl transition-all cursor-pointer"
+                            className="px-6 py-2.5 bg-[#2E2E33] hover:bg-slate-700 text-white font-bold text-xs rounded-2xl transition-all cursor-pointer"
                           >
                             {activeRelationship.sender.toLowerCase() === currentUser.username.toLowerCase()
                               ? "Try Resending Request"
@@ -3563,7 +3563,7 @@ export default function Home() {
                 isDark ? "bg-black" : "bg-slate-50"
               }`}>
                 <div className={`w-20 h-20 rounded-full border flex items-center justify-center text-slate-400 mb-4 shadow-sm ${
-                  isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+                  isDark ? "bg-slate-900 border-[#2E2E33]" : "bg-white border-slate-200"
                 }`}>
                   <svg className="w-10 h-10 stroke-[1.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -3626,7 +3626,7 @@ export default function Home() {
                   </p>
                 </div>
 
-                <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:brightness-110 hover:shadow-cyan-500/20 text-white font-extrabold text-xs tracking-wider shadow-lg shadow-blue-500/20 active:scale-95 transition-all uppercase cursor-pointer">
+                <button className="w-full py-3.5 rounded-2xl bg-[#E8EA7A] hover:bg-[#F3F59B] text-[#1E1E22] font-extrabold text-xs tracking-wider active:scale-95 transition-all uppercase cursor-pointer shadow-md shadow-[#E8EA7A]/10">
                   View Profile Details
                 </button>
 
@@ -3636,7 +3636,7 @@ export default function Home() {
                       onClick={() => startCall("video")}
                       title="Video Call"
                       className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-all shadow-md cursor-pointer border ${
-                        isDark ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white" 
+                        isDark ? "bg-slate-900 border-[#2E2E33] text-slate-300 hover:bg-[#2E2E33] hover:text-white" 
                           : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-850"
                       }`}
                     >
@@ -3650,7 +3650,7 @@ export default function Home() {
                       onClick={() => startCall("audio")}
                       title="Voice Call"
                       className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-all shadow-md cursor-pointer border ${
-                        isDark ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white" 
+                        isDark ? "bg-slate-900 border-[#2E2E33] text-slate-300 hover:bg-[#2E2E33] hover:text-white" 
                           : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-850"
                       }`}
                     >
@@ -3674,10 +3674,10 @@ export default function Home() {
           <div className="absolute inset-0 bg-radial-gradient from-slate-900 via-slate-950 to-black pointer-events-none opacity-80" />
 
           {/* Main container */}
-          <div className="relative z-10 w-full max-w-4xl h-full md:max-h-[85vh] max-h-screen md:rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="relative z-10 w-full max-w-4xl h-full md:max-h-[85vh] max-h-screen md:rounded-3xl border border-[#2E2E33] bg-slate-900/60 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden">
             
             {/* Call Header info */}
-            <div className="p-4 md:p-6 flex items-center justify-between border-b border-slate-800">
+            <div className="p-4 md:p-6 flex items-center justify-between border-b border-[#2E2E33]">
               <div className="flex items-center gap-3">
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -3688,7 +3688,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="text-xs bg-slate-800/80 px-3 py-1.5 rounded-full font-mono font-bold tracking-wide">
+              <div className="text-xs bg-[#2E2E33]/80 px-3 py-1.5 rounded-full font-mono font-bold tracking-wide">
                 {currentTime}
               </div>
             </div>
@@ -3700,8 +3700,8 @@ export default function Home() {
               {(callState === "calling" || callState === "ringing") && (
                 <div className="flex flex-col items-center text-center space-y-6 animate-pulse">
                   <div className="relative">
-                    <div className="absolute -inset-4 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 opacity-30 blur-md animate-pulse" />
-                    <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-slate-850 shadow-xl relative bg-slate-800 p-1">
+                    <div className="absolute -inset-4 rounded-full bg-gradient-to-tr from-[#E8EA7A] to-[#3D1B5C] opacity-30 blur-md animate-pulse" />
+                    <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#2E2E33] shadow-xl relative bg-[#2E2E33] p-1">
                       <img
                         src={callState === "calling" ? activeContact?.avatarUrl : PRESET_AVATARS[0]}
                         alt="Calling Avatar"
@@ -3742,7 +3742,7 @@ export default function Home() {
 
               {/* If CONNECTED (active streams) */}
               {callState === "connected" && (
-                <div className="w-full h-full relative flex items-center justify-center bg-slate-950 rounded-2xl overflow-hidden border border-slate-800">
+                <div className="w-full h-full relative flex items-center justify-center bg-slate-950 rounded-2xl overflow-hidden border border-[#2E2E33]">
                   {callType === "video" ? (
                     <>
                       {/* Remote video (full stream) */}
@@ -3767,14 +3767,14 @@ export default function Home() {
                       )}
 
                       {/* Floating Vertical Sidebar Call Controls */}
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3.5 z-30 bg-slate-950/60 backdrop-blur-md p-2.5 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-300">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3.5 z-30 bg-slate-950/60 backdrop-blur-md p-2.5 rounded-2xl border border-[#2E2E33] shadow-2xl transition-all duration-300">
                         {/* Mute Microphone Button */}
                         <button
                           onClick={toggleMute}
                           className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                             isMicMuted 
                               ? "bg-rose-500/20 text-rose-500 border border-rose-500/30 hover:bg-rose-500/30" 
-                              : "bg-slate-900/80 hover:bg-slate-800 text-slate-350 hover:text-white border border-slate-800/80"
+                              : "bg-slate-900/80 hover:bg-[#2E2E33] text-slate-350 hover:text-white border border-[#2E2E33]/80"
                           }`}
                           title={isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
                         >
@@ -3795,7 +3795,7 @@ export default function Home() {
                           className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                             isCameraOff 
                               ? "bg-rose-500/20 text-rose-500 border border-rose-500/30 hover:bg-rose-500/30" 
-                              : "bg-slate-900/80 hover:bg-slate-800 text-slate-350 hover:text-white border border-slate-800/80"
+                              : "bg-slate-900/80 hover:bg-[#2E2E33] text-slate-350 hover:text-white border border-[#2E2E33]/80"
                           }`}
                           title={isCameraOff ? "Turn Video On" : "Turn Video Off"}
                         >
@@ -3816,7 +3816,7 @@ export default function Home() {
                           disabled={videoDevices.length <= 1}
                           className={`w-11 h-11 rounded-xl flex items-center justify-center border transition-all duration-200 ${
                             videoDevices.length > 1
-                              ? "bg-slate-900/80 hover:bg-slate-800 text-slate-350 hover:text-white border-slate-800/80 cursor-pointer"
+                              ? "bg-slate-900/80 hover:bg-[#2E2E33] text-slate-350 hover:text-white border-[#2E2E33]/80 cursor-pointer"
                               : "bg-slate-950/40 text-slate-600 border-slate-900/50 cursor-not-allowed opacity-50"
                           }`}
                           title={videoDevices.length > 1 ? "Flip Camera" : "No other camera available"}
@@ -3841,7 +3841,7 @@ export default function Home() {
                     <div className="flex flex-col items-center text-center space-y-6">
                       <div className="relative">
                         <div className="absolute -inset-4 rounded-full bg-emerald-500/20 opacity-70 blur-md animate-pulse" />
-                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl bg-slate-800">
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl bg-[#2E2E33]">
                           <img
                             src={activeContact?.avatarUrl}
                             alt="Active voice avatar"
@@ -3864,11 +3864,11 @@ export default function Home() {
 
             {/* Call Footer controls */}
             {!(callState === "connected" && callType === "video") && (
-              <div className="p-6 bg-slate-950/80 border-t border-slate-800 flex items-center justify-center gap-6 select-none">
+              <div className="p-6 bg-slate-950/80 border-t border-[#2E2E33] flex items-center justify-center gap-6 select-none">
                 <button
                   onClick={toggleMute}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                    isMicMuted ? "bg-rose-500/20 text-rose-500 border border-rose-500/30" : "bg-slate-800 hover:bg-slate-700 text-white"
+                    isMicMuted ? "bg-rose-500/20 text-rose-500 border border-rose-500/30" : "bg-[#2E2E33] hover:bg-slate-700 text-white"
                   }`}
                   title={isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
                 >
@@ -3887,7 +3887,7 @@ export default function Home() {
                   <button
                     onClick={toggleCamera}
                     className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                      isCameraOff ? "bg-rose-500/20 text-rose-500 border border-rose-500/30" : "bg-slate-800 hover:bg-slate-700 text-white"
+                      isCameraOff ? "bg-rose-500/20 text-rose-500 border border-rose-500/30" : "bg-[#2E2E33] hover:bg-slate-700 text-white"
                     }`}
                     title={isCameraOff ? "Turn Video On" : "Turn Video Off"}
                   >
@@ -3904,7 +3904,7 @@ export default function Home() {
                 )}
 
                 {callType === "video" && callState === "connected" && videoDevices.length > 0 && (
-                  <div className="relative flex items-center bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-full px-3 py-2 text-white text-xs font-semibold cursor-pointer max-w-[160px] sm:max-w-[200px] transition-all">
+                  <div className="relative flex items-center bg-[#2E2E33] hover:bg-slate-700 border border-slate-700/50 rounded-full px-3 py-2 text-white text-xs font-semibold cursor-pointer max-w-[160px] sm:max-w-[200px] transition-all">
                     <Camera className="w-4 h-4 text-emerald-400 shrink-0 mr-1.5" />
                     <select
                       value={selectedVideoDevice}
@@ -3972,7 +3972,7 @@ export default function Home() {
                 <p className="text-xs font-bold text-rose-500">{liveCameraError}</p>
                 <button
                   onClick={startLiveCamera}
-                  className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-[#2E2E33] hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
                 >
                   Retry Access
                 </button>
@@ -3986,7 +3986,7 @@ export default function Home() {
                   <button 
                     onClick={() => setCapturedPhoto(null)}
                     className={`flex-1 py-3 border rounded-xl font-extrabold text-xs active:scale-95 transition-all cursor-pointer ${
-                      isDark ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-850" : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      isDark ? "bg-slate-900 border-[#2E2E33] text-slate-300 hover:bg-slate-850" : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
                     Retake
