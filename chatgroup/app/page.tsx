@@ -341,6 +341,88 @@ export default function Home() {
         return {};
     }
   };
+
+  const getMessageBubbleStyles = (isMe: boolean) => {
+    // Default fallback classes
+    const defaultMe = "bg-[#3D1B5C] text-[#FFFFFF] rounded-br-sm shadow-sm";
+    const defaultOtherDark = "bg-[#2E2E33] text-[#E8E8F0] rounded-bl-sm border border-[#2E2E33]";
+    const defaultOtherLight = "bg-[#F0F0F8] text-[#252529] rounded-bl-sm border border-[#E0E0EA]";
+    const defaultOther = isDark ? defaultOtherDark : defaultOtherLight;
+
+    if (chatBackground === "default") {
+      return isMe ? { className: defaultMe } : { className: defaultOther };
+    }
+
+    switch (chatBackground) {
+      case "starry":
+        return isMe 
+          ? { style: { backgroundColor: "rgba(79, 70, 229, 0.85)", color: "#FFFFFF" } } // Deep Indigo
+          : { style: { backgroundColor: "rgba(30, 41, 59, 0.8)", color: "#E2E8F0", borderColor: "rgba(71, 85, 105, 0.4)", borderWidth: "1px", borderStyle: "solid" } };
+      case "nude-minimalist":
+      case "nude-cream":
+      case "nude-sand":
+      case "nude-tan":
+      case "nude-rose":
+        return isMe
+          ? { style: { backgroundColor: "#8C6239", color: "#FFFFFF" } } // Warm Terracotta / Clay Brown
+          : { style: { backgroundColor: "#F5EBE6", color: "#4A3E3D", borderColor: "#E6D5CC", borderWidth: "1px", borderStyle: "solid" } };
+      case "aurora-glow":
+        return isMe
+          ? { style: { backgroundColor: "rgba(13, 148, 136, 0.9)", color: "#FFFFFF" } } // Aurora Teal
+          : { style: { backgroundColor: "rgba(15, 23, 42, 0.85)", color: "#2DD4BF", borderColor: "rgba(20, 184, 166, 0.3)", borderWidth: "1px", borderStyle: "solid" } };
+      case "cyberpunk-neon":
+        return isMe
+          ? { style: { backgroundColor: "#EC4899", color: "#FFFFFF", boxShadow: "0 0 10px rgba(236, 72, 153, 0.5)" } } // Hot Pink Glow
+          : { style: { backgroundColor: "#1E1B4B", color: "#38BDF8", borderColor: "#4338CA", borderWidth: "1px", borderStyle: "solid" } }; // Cyber Indigo/Cyan
+      case "forest-mist":
+        return isMe
+          ? { style: { backgroundColor: "#556B2F", color: "#FFFFFF" } } // Dark Olive Green
+          : { style: { backgroundColor: "#FAF0E6", color: "#2E3B1E", borderColor: "#D2B48C", borderWidth: "1px", borderStyle: "solid" } }; // Linen
+      case "cute-shinchan":
+        return isMe
+          ? { style: { backgroundColor: "#E53E3E", color: "#FFFFFF" } } // McDonald's Red
+          : { style: { backgroundColor: "#FFF8F0", color: "#5C3E35", borderColor: "#FED7D7", borderWidth: "1px", borderStyle: "solid" } }; // Soft donut cream
+      case "cute-chibi":
+        return isMe
+          ? { style: { backgroundColor: "#FF6B8B", color: "#FFFFFF" } } // Strawberry pink
+          : { style: { backgroundColor: "#FFF5F5", color: "#4A2B2D", borderColor: "#FFE3E3", borderWidth: "1px", borderStyle: "solid" } };
+      case "cute-retro":
+      case "retro-blobs":
+        return isMe
+          ? { style: { backgroundColor: "#D97706", color: "#FFFFFF" } } // Terracotta Orange
+          : { style: { backgroundColor: "#ECFDF5", color: "#065F46", borderColor: "#A7F3D0", borderWidth: "1px", borderStyle: "solid" } }; // Pale Emerald / Sage Green
+      case "nature-lake":
+        return isMe
+          ? { style: { backgroundColor: "#C2410C", color: "#FFFFFF" } } // Rust / Autumn Orange
+          : { style: { backgroundColor: "#F0FDF4", color: "#166534", borderColor: "#BBF7D0", borderWidth: "1px", borderStyle: "solid" } }; // Pale Mint
+      case "rainy-weather":
+        return isMe
+          ? { style: { backgroundColor: "#475569", color: "#FFFFFF" } } // Slate Gray
+          : { style: { backgroundColor: "#F1F5F9", color: "#1E293B", borderColor: "#E2E8F0", borderWidth: "1px", borderStyle: "solid" } }; // Rain Light Gray
+      case "tangled":
+        return isMe
+          ? { style: { backgroundColor: "#7C3AED", color: "#FFFFFF" } } // Royal Purple
+          : { style: { backgroundColor: "#FEF9C3", color: "#713F12", borderColor: "#FEF08A", borderWidth: "1px", borderStyle: "solid" } }; // Rapunzel Blonde/Yellow
+      case "bows-pattern":
+        return isMe
+          ? { style: { backgroundColor: "#F472B6", color: "#FFFFFF" } } // Cotton Candy Pink
+          : { style: { backgroundColor: "#FFFDF9", color: "#854D0E", borderColor: "#FED7AA", borderWidth: "1px", borderStyle: "solid" } }; // Light Cream Cherry
+      case "spiderman":
+        return isMe
+          ? { style: { backgroundColor: "#E53E3E", color: "#FFFFFF" } } // Spider-Man Red
+          : { style: { backgroundColor: "#1E293B", color: "#F472B6", borderColor: "#F472B6", borderWidth: "1px", borderStyle: "solid" } }; // Gwen Stacy Dark/Pink
+      case "solid-dark":
+        return isMe
+          ? { style: { backgroundColor: "#3F3F46", color: "#FFFFFF" } } // Zinc-700
+          : { style: { backgroundColor: "#18181B", color: "#E4E4E7", borderColor: "#27272A", borderWidth: "1px", borderStyle: "solid" } }; // Zinc-900
+      case "sunset":
+        return isMe
+          ? { style: { backgroundColor: "#E11D48", color: "#FFFFFF" } } // Rose-600
+          : { style: { backgroundColor: "rgba(24, 24, 27, 0.75)", color: "#F4F4F5", borderColor: "rgba(63, 63, 70, 0.4)", borderWidth: "1px", borderStyle: "solid" } }; // Translucent sunset message
+      default:
+        return isMe ? { className: defaultMe } : { className: defaultOther };
+    }
+  };
   
   // Emoji Picker states
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -3903,6 +3985,8 @@ export default function Home() {
 
                   {conversationMessages.map((msg) => {
                     const isMe = msg.sender === currentUser.username;
+                    const bubbleConfig = getMessageBubbleStyles(isMe);
+                    const shapeClass = isMe ? "rounded-br-sm shadow-sm" : "rounded-bl-sm border";
                     
                     return (
                       <div
@@ -3984,11 +4068,8 @@ export default function Home() {
 
                         <div className="flex flex-col max-w-[70%]">
                           <div
-                            className={`px-4 py-2.5 rounded-[18px] text-[14px] leading-relaxed break-words relative ${
-                              isMe ? "bg-[#3D1B5C] text-[#FFFFFF] rounded-br-sm shadow-sm"
-                                : isDark ? "bg-[#2E2E33] text-[#E8E8F0] rounded-bl-sm border border-[#2E2E33]"
-                                  : "bg-[#F0F0F8] text-[#252529] rounded-bl-sm border border-[#E0E0EA]"
-                            }`}
+                            className={`px-4 py-2.5 rounded-[18px] text-[14px] leading-relaxed break-words relative ${shapeClass} ${bubbleConfig.className || ""}`}
+                            style={bubbleConfig.style || {}}
                           >
                             {/* Forwarded Header */}
                             {msg.forwarded && (
@@ -4026,8 +4107,8 @@ export default function Home() {
                             )}
 
                             <div className="flex items-center justify-end mt-1 text-[9px] font-medium select-none gap-1">
-                              {msg.edited && <span className={isMe ? "text-[#FFFFFF]/50 italic" : "text-slate-500 italic"}>(edited)</span>}
-                              <span className={isMe ? "text-[#FFFFFF]/70" : isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}>{msg.time}</span>
+                              {msg.edited && <span className="opacity-55 italic">(edited)</span>}
+                              <span className="opacity-75">{msg.time}</span>
                               {isMe && msg.status && renderCheckmarks(msg.status)}
                             </div>
                           </div>
@@ -4134,13 +4215,21 @@ export default function Home() {
                         alt={activeContact.username}
                         className="w-[28px] h-[28px] rounded-full object-cover border border-slate-200 flex-shrink-0 mb-1"
                       />
-                      <div className={`px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shadow-sm ${
-                        isDark ? "bg-[#2E2E33] text-slate-100" : "bg-slate-100 text-slate-800"
-                      }`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </div>
+                      {(() => {
+                        const typingBubbleConfig = getMessageBubbleStyles(false);
+                        return (
+                          <div
+                            className={`px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shadow-sm ${
+                              typingBubbleConfig.className || ""
+                            }`}
+                            style={typingBubbleConfig.style || {}}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
