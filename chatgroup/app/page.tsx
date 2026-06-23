@@ -2027,7 +2027,7 @@ export default function Home() {
         <Check className="w-3.5 h-3.5 inline ml-1 text-slate-400 transition-colors duration-300" strokeWidth={3} />
       );
     }
-    const color = status === "read" ? "text-sky-400" : "text-slate-400";
+    const color = status === "read" ? "text-[#E8EA7A]" : "text-slate-400";
     return (
       <CheckCheck className={`w-3.5 h-3.5 inline ml-1 ${color} transition-colors duration-300`} strokeWidth={3} />
     );
@@ -3458,10 +3458,10 @@ export default function Home() {
           {/* Floating background glowing orbs */}
           <div className="absolute inset-0 pointer-events-none z-0">
             <div className={`absolute top-[10%] left-[15%] w-[250px] sm:w-[320px] h-[250px] sm:h-[320px] rounded-full blur-[100px] transition-opacity duration-700 animate-float-slow ${
-              isDark ? "bg-indigo-600/15 opacity-100" : "bg-indigo-400/10 opacity-80"
+              isDark ? "bg-[#E8EA7A]/12 opacity-100" : "bg-[#E8EA7A]/8 opacity-80"
             }`} />
             <div className={`absolute bottom-[10%] right-[15%] w-[280px] sm:w-[350px] h-[280px] sm:h-[350px] rounded-full blur-[110px] transition-opacity duration-700 animate-float-medium ${
-              isDark ? "bg-sky-500/15 opacity-100" : "bg-sky-400/10 opacity-80"
+              isDark ? "bg-[#B5B73B]/12 opacity-100" : "bg-[#B5B73B]/8 opacity-80"
             }`} />
           </div>
 
@@ -3470,7 +3470,7 @@ export default function Home() {
               ? "bg-[#050505] border-neutral-900 text-slate-100 black-theme"
               : isDark ? "glass-card-dark text-slate-100" : "glass-card-light text-slate-800"
           }`}>
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-sky-500/40 to-transparent" />
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#E8EA7A]/40 to-transparent" />
             
             <div className="w-14 h-14 rounded-2xl overflow-hidden mb-4 shadow-lg flex items-center justify-center bg-white border border-slate-200">
               <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
@@ -3505,8 +3505,8 @@ export default function Home() {
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="e.g. paul or paul@chatgroup.com"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10 shadow-sm"
                     }`}
                     required
                   />
@@ -3520,8 +3520,8 @@ export default function Home() {
                     onChange={(e) => setAuthPassword(e.target.value)}
                     placeholder="••••••••"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10 shadow-sm"
                     }`}
                     required
                   />
@@ -3530,7 +3530,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={isAuthLoading}
-                  className={`w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 font-bold text-white rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm mt-2 cursor-pointer ${
+                  className={`w-full py-3.5 bg-gradient-to-r from-[#E8EA7A] to-[#D2D45E] font-bold text-[#1E1E22] rounded-2xl shadow-lg shadow-[#E8EA7A]/10 active:scale-95 transition-all text-sm mt-2 cursor-pointer ${
                     isAuthLoading ? "opacity-70 cursor-not-allowed" : "hover:brightness-110"
                   }`}
                 >
@@ -3546,7 +3546,7 @@ export default function Home() {
                       setAuthMode("register");
                       setAuthError(null);
                     }}
-                    className="text-sky-500 hover:underline font-bold"
+                    className="text-[#E8EA7A] hover:underline font-bold"
                   >
                     Sign Up
                   </button>
@@ -3565,7 +3565,7 @@ export default function Home() {
                         onClick={() => setSelectedAvatarUrl(avatarItem)}
                         className={`relative w-9 h-9 rounded-full overflow-hidden border-2 transition-all duration-200 hover:scale-110 active:scale-90 shadow-sm ${
                           selectedAvatarUrl === avatarItem 
-                            ? "border-sky-500 ring-2 ring-sky-500/20 scale-105" 
+                            ? "border-[#E8EA7A] ring-2 ring-[#E8EA7A]/20 scale-105" 
                             : "border-transparent opacity-70 hover:opacity-100"
                         }`}
                       >
@@ -3583,8 +3583,8 @@ export default function Home() {
                     onChange={(e) => setRegUsername(e.target.value)}
                     placeholder="e.g. ann123"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10 shadow-sm"
                     }`}
                     required
                   />
@@ -3598,8 +3598,8 @@ export default function Home() {
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="e.g. ann@example.com"
                     className={`w-full px-4 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
-                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
+                      isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10" 
+                        : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10 shadow-sm"
                     }`}
                     required
                   />
@@ -3614,15 +3614,15 @@ export default function Home() {
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="Create a password"
                       className={`w-full pl-4 pr-11 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                        isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
-                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
+                        isDark ? "bg-slate-900/50 border-[#2E2E33] text-white placeholder-slate-500 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10" 
+                          : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#E8EA7A] focus:ring-[#E8EA7A]/10 shadow-sm"
                       }`}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-sky-400 transition-colors"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#E8EA7A] transition-colors"
                     >
                       {showRegPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                     </button>
@@ -3632,7 +3632,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={isAuthLoading}
-                  className={`w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 font-bold text-white rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm mt-2 cursor-pointer ${
+                  className={`w-full py-3.5 bg-gradient-to-r from-[#E8EA7A] to-[#D2D45E] font-bold text-[#1E1E22] rounded-2xl shadow-lg shadow-[#E8EA7A]/10 active:scale-95 transition-all text-sm mt-2 cursor-pointer ${
                     isAuthLoading ? "opacity-70 cursor-not-allowed" : "hover:brightness-110"
                   }`}
                 >
@@ -3646,7 +3646,7 @@ export default function Home() {
                       setAuthMode("login");
                       setAuthError(null);
                     }}
-                    className="text-sky-500 hover:underline font-bold"
+                    className="text-[#E8EA7A] hover:underline font-bold"
                   >
                     Sign In
                   </button>
@@ -4411,7 +4411,7 @@ export default function Home() {
                           </p>
                           <button
                             onClick={() => sendChatRequest(activeContact.username)}
-                            className="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:brightness-110 text-white font-extrabold text-xs rounded-2xl shadow-md shadow-sky-500/10 active:scale-95 transition-all cursor-pointer"
+                            className="px-6 py-3 bg-gradient-to-r from-[#E8EA7A] to-[#D2D45E] hover:brightness-105 text-[#1E1E22] font-extrabold text-xs rounded-2xl shadow-md shadow-[#E8EA7A]/10 active:scale-95 transition-all cursor-pointer"
                           >
                             Send Message Request
                           </button>
@@ -4502,7 +4502,7 @@ export default function Home() {
               }`}
             >
               {/* Cover Banner Cover */}
-              <div className="w-full h-24 bg-gradient-to-r from-sky-500/20 via-indigo-500/20 to-purple-500/20 relative flex-shrink-0">
+              <div className="w-full h-24 bg-gradient-to-r from-[#E8EA7A]/20 via-[#B5B73B]/10 to-transparent relative flex-shrink-0">
                 <button 
                   onClick={() => setIsDetailPaneOpen(false)}
                   className="lg:hidden absolute top-4 right-4 p-2 bg-slate-900/60 text-white rounded-full backdrop-blur-sm hover:bg-slate-900 transition-colors"
@@ -4515,7 +4515,7 @@ export default function Home() {
 
               {/* Profile Avatar */}
               <div className="relative -mt-12 mb-4 select-none flex-shrink-0 z-10">
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 opacity-60 blur-xs" />
+                <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-[#E8EA7A] via-[#D2D45E] to-[#B5B73B] opacity-60 blur-xs" />
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-950 p-[1.5px] shadow-lg relative bg-slate-900">
                   <img
                     src={activeContact.avatarUrl}
@@ -4530,7 +4530,7 @@ export default function Home() {
                   {activeContact.username.toUpperCase()}
                 </h2>
                 
-                <span className="text-[10px] font-extrabold tracking-widest text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-full uppercase mb-5">
+                <span className="text-[10px] font-extrabold tracking-widest text-[#E8EA7A] bg-[#E8EA7A]/10 border border-[#E8EA7A]/20 px-3 py-1 rounded-full uppercase mb-5">
                   {activeContact.category || "MEMBER"}
                 </span>
 
