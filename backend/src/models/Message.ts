@@ -7,6 +7,11 @@ export interface IMessage extends Document {
   imageUrl?: string;
   time: string;
   status: 'sent' | 'delivered' | 'read';
+  edited?: boolean;
+  forwarded?: boolean;
+  replyToId?: string;
+  replyToSender?: string;
+  replyToText?: string;
 }
 
 const MessageSchema: Schema = new Schema({
@@ -15,7 +20,12 @@ const MessageSchema: Schema = new Schema({
   text: { type: String },
   imageUrl: { type: String },
   time: { type: String, required: true },
-  status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' }
+  status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
+  edited: { type: Boolean, default: false },
+  forwarded: { type: Boolean, default: false },
+  replyToId: { type: String },
+  replyToSender: { type: String },
+  replyToText: { type: String }
 }, {
   timestamps: true
 });

@@ -133,8 +133,12 @@ io.on('connection', (socket) => {
     text: string;
     imageUrl?: string;
     time: string;
+    forwarded?: boolean;
+    replyToId?: string;
+    replyToSender?: string;
+    replyToText?: string;
   }) => {
-    const { sender, recipient, text, imageUrl, time } = data;
+    const { sender, recipient, text, imageUrl, time, forwarded, replyToId, replyToSender, replyToText } = data;
     if (!sender || !recipient) return;
 
     try {
@@ -145,7 +149,11 @@ io.on('connection', (socket) => {
         text,
         imageUrl,
         time,
-        status: 'sent'
+        status: 'sent',
+        forwarded: forwarded || false,
+        replyToId,
+        replyToSender,
+        replyToText
       });
       await message.save();
 
@@ -156,7 +164,12 @@ io.on('connection', (socket) => {
         text: message.text,
         imageUrl: message.imageUrl,
         time: message.time,
-        status: message.status
+        status: message.status,
+        forwarded: message.forwarded,
+        replyToId: message.replyToId,
+        replyToSender: message.replyToSender,
+        replyToText: message.replyToText,
+        edited: message.edited
       };
 
       // Confirm to sender
@@ -174,6 +187,46 @@ io.on('connection', (socket) => {
       console.log(`Realtime: Relayed message from ${sender} to ${recipient}`);
     } catch (err: any) {
       console.error('Error handling socket sendMessage:', err);
+    }
+  });
+
+  // When a user edits a message in real-time
+  socket.on('editMessage', async (data: {
+    id: string;
+    text: string;
+  }) => {
+    const { id, text } = data;
+    if (!id || !text) return;
+
+    try {
+      const message = await Message.findById(id);
+      if (message) {
+        message.text = text;
+        message.edited = true;
+        await message.save();
+
+        const formatted = {
+          id: message._id.toString(),
+          sender: message.sender,
+          recipient: message.recipient,
+          text: message.text,
+          imageUrl: message.imageUrl,
+          time: message.time,
+          status: message.status,
+          forwarded: message.forwarded,
+          replyToId: message.replyToId,
+          replyToSender: message.replyToSender,
+          replyToText: message.replyToText,
+          edited: message.edited
+        };
+
+        // Emit back to both sender and recipient
+        emitToUser(message.recipient, 'messageEdited', formatted);
+        emitToUser(message.sender, 'messageEdited', formatted);
+        console.log(`Realtime: Message edited, ID: ${id}`);
+      }
+    } catch (err: any) {
+      console.error('Error handling socket editMessage:', err);
     }
   });
 
@@ -429,7 +482,12 @@ app.get('/api/messages', async (req: Request, res: Response): Promise<any> => {
       text: msg.text,
       imageUrl: msg.imageUrl,
       time: msg.time,
-      status: msg.status
+      status: msg.status,
+      edited: msg.edited,
+      forwarded: msg.forwarded,
+      replyToId: msg.replyToId,
+      replyToSender: msg.replyToSender,
+      replyToText: msg.replyToText
     }));
 
     res.json(formattedMessages);
@@ -440,7 +498,7 @@ app.get('/api/messages', async (req: Request, res: Response): Promise<any> => {
 
 // Save a new message (Fallback REST endpoint)
 app.post('/api/messages', async (req: Request, res: Response): Promise<any> => {
-  const { sender, recipient, text, imageUrl, time, status } = req.body;
+  const { sender, recipient, text, imageUrl, time, status, forwarded, replyToId, replyToSender, replyToText } = req.body;
   if (!sender || !recipient) {
     return res.status(400).json({ error: 'Sender and recipient are required' });
   }
@@ -452,7 +510,11 @@ app.post('/api/messages', async (req: Request, res: Response): Promise<any> => {
       text,
       imageUrl,
       time,
-      status: status || 'sent'
+      status: status || 'sent',
+      forwarded: forwarded || false,
+      replyToId,
+      replyToSender,
+      replyToText
     });
     await message.save();
     
@@ -463,7 +525,12 @@ app.post('/api/messages', async (req: Request, res: Response): Promise<any> => {
       text: message.text,
       imageUrl: message.imageUrl,
       time: message.time,
-      status: message.status
+      status: message.status,
+      forwarded: message.forwarded,
+      replyToId: message.replyToId,
+      replyToSender: message.replyToSender,
+      replyToText: message.replyToText,
+      edited: message.edited
     };
 
     res.json(formatted);
@@ -472,6 +539,40 @@ app.post('/api/messages', async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+// Edit an existing message (Fallback REST endpoint)
+app.put('/api/messages/:id', async (req: Request, res: Response): Promise<any> => {
+  const { id } = req.params;
+  const { text } = req.body;
+  if (!text) {
+    return res.status(400).json({ error: 'Text is required for editing a message' });
+  }
+
+  try {
+    const message = await Message.findByIdAndUpdate(id, { $set: { text, edited: true } }, { new: true });
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const formatted = {
+      id: message._id.toString(),
+      sender: message.sender,
+      recipient: message.recipient,
+      text: message.text,
+      imageUrl: message.imageUrl,
+      time: message.time,
+      status: message.status,
+      forwarded: message.forwarded,
+      replyToId: message.replyToId,
+      replyToSender: message.replyToSender,
+      replyToText: message.replyToText,
+      edited: message.edited
+    };
+
+    res.json(formatted);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // Mark messages as read
 app.put('/api/messages/read', async (req: Request, res: Response): Promise<any> => {
   const { sender, recipient } = req.body;

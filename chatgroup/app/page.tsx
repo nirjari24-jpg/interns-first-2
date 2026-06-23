@@ -50,6 +50,11 @@ interface Message {
   time: string;
   status?: "sent" | "delivered" | "read";
   isNew?: boolean;
+  edited?: boolean;
+  forwarded?: boolean;
+  replyToId?: string;
+  replyToSender?: string;
+  replyToText?: string;
 }
 
 interface MessageRequest {
@@ -196,6 +201,12 @@ export default function Home() {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [inputText, setInputText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Message interaction states
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  const [messageActionsOpenId, setMessageActionsOpenId] = useState<string | null>(null);
   
   // Emoji Picker states
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -997,6 +1008,11 @@ export default function Home() {
       setTimeout(() => scrollToBottom("smooth"), 50);
     });
 
+    // Listen for message edit events from server
+    socket.on("messageEdited", (editedMsg: Message) => {
+      setMessages((prev) => prev.map((m) => m.id === editedMsg.id ? { ...m, text: editedMsg.text, edited: true } : m));
+    });
+
     // Listen for read receipts from other users
     socket.on("messagesRead", (data: { reader: string }) => {
       if (!data || !data.reader) return;
@@ -1463,6 +1479,32 @@ export default function Home() {
     if (!textContent && !imageLink) return;
     if (!currentUser || !activeContact) return;
 
+    // Handle Edit message
+    if (editingMessage) {
+      if (!textContent) return;
+      
+      // Update locally
+      setMessages((prev) => prev.map((m) => m.id === editingMessage.id ? { ...m, text: textContent, edited: true } : m));
+      setInputText("");
+      setEditingMessage(null);
+      
+      // Emit through Socket
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit("editMessage", {
+          id: editingMessage.id,
+          text: textContent
+        });
+      } else {
+        // Fallback to REST API
+        fetch(`${API_BASE}/api/messages/${editingMessage.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: textContent })
+        }).catch(err => console.error("Error editing message via REST fallback:", err));
+      }
+      return;
+    }
+
     const timeStringVal = new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit"
@@ -1481,8 +1523,16 @@ export default function Home() {
       status: "sent"
     };
 
+    // Add reply properties if replying
+    if (replyingToMessage) {
+      newMsg.replyToId = replyingToMessage.id;
+      newMsg.replyToSender = replyingToMessage.sender;
+      newMsg.replyToText = replyingToMessage.text || (replyingToMessage.imageUrl ? "📷 Image" : "");
+    }
+
     setMessages((prev) => [...prev, newMsg]);
     setInputText("");
+    setReplyingToMessage(null); // Reset reply state
     playSound("send");
     setTimeout(() => scrollToBottom("smooth"), 50);
 
@@ -1493,7 +1543,10 @@ export default function Home() {
         recipient: activeContact.username,
         text: textContent,
         imageUrl: imageLink,
-        time: timeStringVal
+        time: timeStringVal,
+        replyToId: newMsg.replyToId,
+        replyToSender: newMsg.replyToSender,
+        replyToText: newMsg.replyToText
       });
 
       socketRef.current.emit("typing", {
@@ -1516,6 +1569,57 @@ export default function Home() {
     }
 
     // Mock auto-reply triggered by MOCK_CONTACTS is disabled
+  };
+
+  const handleForwardMessage = (targetContactUsername: string) => {
+    if (!forwardingMessage || !currentUser) return;
+
+    const timeStringVal = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const tempId = Math.random().toString(36).substring(2, 9);
+
+    const newMsg: Message = {
+      id: tempId,
+      sender: currentUser.username,
+      recipient: targetContactUsername,
+      text: forwardingMessage.text,
+      imageUrl: forwardingMessage.imageUrl,
+      time: timeStringVal,
+      status: "sent",
+      forwarded: true
+    };
+
+    // Add locally if the active chat is this contact
+    if (activeContact && activeContact.username.toLowerCase() === targetContactUsername.toLowerCase()) {
+      setMessages((prev) => [...prev, newMsg]);
+      setTimeout(() => scrollToBottom("smooth"), 50);
+    }
+
+    // Emit through Socket
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit("sendMessage", {
+        sender: currentUser.username,
+        recipient: targetContactUsername,
+        text: forwardingMessage.text,
+        imageUrl: forwardingMessage.imageUrl,
+        time: timeStringVal,
+        forwarded: true
+      });
+    } else {
+      // Fallback REST
+      fetch(`${API_BASE}/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMsg)
+      })
+      .catch(err => console.error("Error saving forwarded message:", err));
+    }
+
+    setForwardingMessage(null);
+    setToast(`Message forwarded to ${targetContactUsername}! ↪️`);
+    setTimeout(() => setToast(null), 3000);
   };
 
 
@@ -3058,7 +3162,7 @@ export default function Home() {
                     return (
                       <div
                         key={msg.id}
-                        className={`flex w-full items-end gap-2.5 ${
+                        className={`flex w-full items-end gap-2.5 group/msg relative ${
                           isMe ? "justify-end" : "justify-start"
                         } ${msg.isNew ? "animate-chat-bubble" : ""}`}
                       >
@@ -3070,6 +3174,44 @@ export default function Home() {
                           />
                         )}
 
+                        {/* If it is me, show actions on the left of the bubble */}
+                        {isMe && (
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover/msg:opacity-100 transition-all duration-200 select-none mr-1.5 mb-1.5">
+                            <button
+                              onClick={() => setReplyingToMessage(msg)}
+                              title="Reply to message"
+                              className="p-1 rounded-lg text-slate-400 hover:text-sky-500 hover:bg-slate-100/10 active:scale-90 transition-all cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setForwardingMessage(msg)}
+                              title="Forward message"
+                              className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-100/10 active:scale-90 transition-all cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+                              </svg>
+                            </button>
+                            {msg.text && (
+                              <button
+                                onClick={() => {
+                                  setEditingMessage(msg);
+                                  setInputText(msg.text);
+                                }}
+                                title="Edit message"
+                                className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-100/10 active:scale-90 transition-all cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex flex-col max-w-[70%]">
                           <div
                             className={`px-4 py-2.5 rounded-[18px] text-[14px] leading-relaxed break-words relative ${
@@ -3078,6 +3220,31 @@ export default function Home() {
                                   : "bg-[#F0F0F8] text-[#252529] rounded-bl-sm border border-[#E0E0EA]"
                             }`}
                           >
+                            {/* Forwarded Header */}
+                            {msg.forwarded && (
+                              <div className={`text-[9px] font-semibold italic flex items-center gap-1 mb-1 select-none ${
+                                isMe ? "text-slate-300" : isDark ? "text-slate-500" : "text-slate-400"
+                              }`}>
+                                <span>↪️ forwarded</span>
+                              </div>
+                            )}
+
+                            {/* Reply Header Block */}
+                            {msg.replyToSender && (
+                              <div className={`px-2.5 py-1 rounded border-l-2 text-xs mb-1.5 select-none truncate max-w-full leading-tight ${
+                                isMe ? "bg-black/25 border-sky-400 text-slate-200" 
+                                  : isDark ? "bg-slate-900/40 border-sky-500 text-slate-350" 
+                                    : "bg-slate-200/50 border-sky-500 text-slate-600"
+                              }`}>
+                                <span className="font-bold block text-[9px] text-sky-400">
+                                  Replying to {msg.replyToSender}
+                                </span>
+                                <span className="truncate block mt-0.5 text-[11px] opacity-80">
+                                  {msg.replyToText}
+                                </span>
+                              </div>
+                            )}
+
                             {msg.text && <p className="font-normal">{msg.text}</p>}
                             
                             {msg.imageUrl && (
@@ -3088,12 +3255,37 @@ export default function Home() {
                               />
                             )}
 
-                            <div className="flex items-center justify-end mt-1 text-[9px] font-medium select-none">
+                            <div className="flex items-center justify-end mt-1 text-[9px] font-medium select-none gap-1">
+                              {msg.edited && <span className={isMe ? "text-[#FFFFFF]/50 italic" : "text-slate-500 italic"}>(edited)</span>}
                               <span className={isMe ? "text-[#FFFFFF]/70" : isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}>{msg.time}</span>
                               {isMe && msg.status && renderCheckmarks(msg.status)}
                             </div>
                           </div>
                         </div>
+
+                        {/* If it is not me, show actions on the right of the bubble */}
+                        {!isMe && (
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover/msg:opacity-100 transition-all duration-200 select-none ml-1.5 mb-1.5">
+                            <button
+                              onClick={() => setReplyingToMessage(msg)}
+                              title="Reply to message"
+                              className="p-1 rounded-lg text-slate-400 hover:text-sky-500 hover:bg-slate-100/10 active:scale-90 transition-all cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setForwardingMessage(msg)}
+                              title="Forward message"
+                              className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-100/10 active:scale-90 transition-all cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
 
                         {isMe && (
                           <img
@@ -3130,6 +3322,50 @@ export default function Home() {
                 {/* Floating input dock or Message Request Panel */}
                 {isAccepted ? (
                   <div className="p-4 bg-transparent select-none flex-shrink-0 z-40">
+                    {/* Message Action Preview Bar */}
+                    {(replyingToMessage || editingMessage) && (
+                      <div className={`mb-2 px-4 py-2.5 rounded-xl border flex items-center justify-between animate-chat-bubble ${
+                        isDark ? "bg-slate-900 border-slate-800 text-slate-350" : "bg-slate-100 border-slate-200 text-slate-700"
+                      }`}>
+                        <div className="flex items-center gap-2 overflow-hidden mr-4">
+                          {replyingToMessage ? (
+                            <>
+                              <svg className="w-4 h-4 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                              </svg>
+                              <div className="text-xs truncate">
+                                <span className="font-bold text-sky-500">Replying to {replyingToMessage.sender}:</span>{" "}
+                                <span>{replyingToMessage.text || (replyingToMessage.imageUrl ? "📷 Image" : "")}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                              </svg>
+                              <div className="text-xs truncate">
+                                <span className="font-bold text-amber-500">Editing message:</span>{" "}
+                                <span>{editingMessage?.text}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (editingMessage) {
+                              setInputText("");
+                            }
+                            setReplyingToMessage(null);
+                            setEditingMessage(null);
+                          }}
+                          className="text-slate-500 hover:text-rose-500 p-0.5 rounded-full hover:bg-slate-100/10 transition-all cursor-pointer flex-shrink-0"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                     <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg ${
                       isDark ? "bg-slate-905/90 border-slate-800/80 backdrop-blur-md shadow-black/20" 
                         : "bg-white/95 border-slate-200 backdrop-blur-md shadow-slate-200/50"
@@ -3787,6 +4023,64 @@ export default function Home() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Message Forwarding Modal Overlay */}
+      {forwardingMessage && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex flex-col items-center justify-center p-4 select-none animate-fade-in animate-chat-bubble">
+          <div className={`w-full max-w-sm rounded-[24px] border overflow-hidden p-5 flex flex-col gap-4 shadow-2xl ${
+            isDark ? "bg-[#0b0b0d] border-slate-900" : "bg-white border-slate-200"
+          }`}>
+            <div className="w-full flex justify-between items-center pb-2 border-b border-slate-100/10">
+              <h3 className={`text-sm font-extrabold tracking-tight ${isDark ? "text-slate-100" : "text-slate-800"}`}>
+                Forward Message
+              </h3>
+              <button 
+                onClick={() => setForwardingMessage(null)}
+                className="text-slate-500 hover:text-rose-500 hover:scale-110 active:scale-95 transition-all p-1 cursor-pointer"
+                title="Cancel forwarding"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-500 -mt-1 truncate">
+              Select a contact to forward this message to:
+            </div>
+
+            <div className="flex flex-col gap-1 overflow-y-auto max-h-[260px] custom-scrollbar pr-1">
+              {filteredContacts.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-500 italic">
+                  No other contacts available.
+                </div>
+              ) : (
+                filteredContacts.map((contact) => (
+                  <button
+                    key={contact.username}
+                    onClick={() => handleForwardMessage(contact.username)}
+                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all active:scale-98 cursor-pointer ${
+                      isDark ? "hover:bg-slate-900/60 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    <img 
+                      src={contact.avatarUrl} 
+                      alt={contact.username} 
+                      className="w-8 h-8 rounded-full object-cover border border-slate-200/50 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold truncate">{contact.username}</div>
+                      <div className="text-[10px] text-slate-500 truncate">{contact.email}</div>
+                    </div>
+                    <svg className="w-4 h-4 text-emerald-500 opacity-60 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
