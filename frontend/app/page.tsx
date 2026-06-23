@@ -2406,7 +2406,7 @@ export default function Home() {
         {/* Left: Logo */}
         <div className="flex items-center gap-2.5 select-none">
           <span className={`text-[22px] font-black italic tracking-tight ${isDark ? "text-[#E8D44D]" : "text-[#1A1A2E]"}`}>
-            ChatGroup
+            Friend
           </span>
         </div>
 
@@ -2500,14 +2500,8 @@ export default function Home() {
                 )}
               </button>
 
-<<<<<<< HEAD
-
               {/* Logged in user avatar */}
               <div className="relative group cursor-pointer" onClick={() => {
-=======
-              {/* User Avatar */}
-              <div className="cursor-pointer" onClick={() => {
->>>>>>> d8bd27d719233a43aeeec9dda51cd3abaa7213af
                 if (currentUser) {
                   setName(currentUser.username);
                   setUsername(currentUser.username);
@@ -2552,10 +2546,8 @@ export default function Home() {
           }`}>
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-sky-500/40 to-transparent" />
             
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/10 mb-4 text-white">
-              <svg className="w-7 h-7 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-              </svg>
+            <div className="w-14 h-14 rounded-2xl overflow-hidden mb-4 shadow-lg flex items-center justify-center bg-white border border-slate-200">
+              <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
             </div>
 
             <h2 className={`text-2xl font-black tracking-wide mb-1 ${isDark ? "text-slate-100" : "text-slate-800"}`}>
@@ -2866,7 +2858,6 @@ export default function Home() {
                 />
               </div>
               
-<<<<<<< HEAD
               <div className="flex justify-between items-center text-xs text-slate-450 font-bold tracking-wide">
                 <div className="flex items-center gap-1.5 cursor-pointer hover:text-slate-650">
                   <span>Latest First</span>
@@ -2874,15 +2865,7 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </div>
-                </div>
-=======
-              {/* All Chat Label */}
-              <div className="flex justify-between items-center">
-                <span className={`text-xs font-bold tracking-wide ${isDark ? "text-[#9090B0]" : "text-[#6B6B8A]"}`}>
-                  All Chat
-                </span>
               </div>
->>>>>>> d8bd27d719233a43aeeec9dda51cd3abaa7213af
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
@@ -2967,13 +2950,7 @@ export default function Home() {
                         <span className="absolute right-3 px-1.5 py-0.5 rounded-full bg-[#E8D44D] text-[9px] font-black text-[#1A1A2E] flex items-center justify-center select-none shadow animate-pulse">
                           REQ
                         </span>
-<<<<<<< HEAD
-=======
-                      ) : hasMockBadge ? (
-                        <span className="absolute right-3 w-5 h-5 rounded-full bg-[#E8D44D] text-[10px] font-black text-[#1A1A2E] flex items-center justify-center select-none">
-                          1
-                        </span>
->>>>>>> d8bd27d719233a43aeeec9dda51cd3abaa7213af
+
                       ) : null}
                     </button>
                   );

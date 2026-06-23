@@ -110,21 +110,30 @@ export default function Home() {
       ? `${window.location.protocol}//${window.location.hostname}:5000`
       : "http://localhost:5000");
 
-  function fetchUsers() {
+  function fetchUsers(loggedInUser?: User | null, autoSelectOnDesktop = false) {
+    const userToExclude = loggedInUser !== undefined ? loggedInUser : currentUser;
     fetch(`${API_BASE}/api/users`)
       .then(res => res.json())
       .then(users => {
         if (users && Array.isArray(users)) {
           setRegisteredUsers(users);
           setActiveContact(prev => {
-            if (!prev) {
-              return users.length > 0 ? users[0] : null;
+            // Safely filter out the current user if it exists
+            const otherUsers = userToExclude && userToExclude.username
+              ? users.filter(u => u?.username && userToExclude?.username && u.username.toLowerCase() !== userToExclude.username.toLowerCase())
+              : users;
+            
+            if (prev) {
+              const exists = otherUsers.find(u => u && u.username && u.username.toLowerCase() === prev.username.toLowerCase());
+              return exists || null;
             }
-            const exists = users.some(u => u.username === prev.username);
-            if (!exists) {
-              return users.length > 0 ? users[0] : null;
+            
+            // Only auto-select on desktop on initial load / login / registration if explicitly allowed
+            if (autoSelectOnDesktop && typeof window !== 'undefined' && window.innerWidth >= 768) {
+              return otherUsers.length > 0 ? otherUsers[0] : null;
             }
-            return prev;
+            
+            return null;
           });
         }
       })
@@ -133,21 +142,22 @@ export default function Home() {
 
   // Navigation View State
   const [currentView, setCurrentView] = useState("chat"); // "chat" or "settings"
+  const [navView, setNavView] = useState<"chat" | "group" | "settings">("chat"); // left nav sidebar active view
 
   // Settings Theme
   const [theme, setTheme] = useState<"light" | "dark" | "black">("dark"); // "dark", "light", or "black"
   const isDark = theme === "dark" || theme === "black";
 
-  // Account Detail States
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 
   // Password Change States
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("omgadhiya97@123");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -193,7 +203,7 @@ export default function Home() {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // Right side panel toggles
-  const [isDetailPaneOpen, setIsDetailPaneOpen] = useState(true);
+  const [isDetailPaneOpen, setIsDetailPaneOpen] = useState(false);
 
   // Online statuses & typing indicator tracking
   const [onlineUsers, setOnlineUsers] = useState<Record<string, "online" | "away" | "offline">>({
@@ -214,6 +224,13 @@ export default function Home() {
   const tempMessageIdRef = useRef<string | null>(null);
   const activeContactRef = useRef<User | null>(null);
   const chatImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Live Camera Snap states & refs
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [liveCameraError, setLiveCameraError] = useState<string | null>(null);
+  const [liveCameraStream, setLiveCameraStream] = useState<MediaStream | null>(null);
+  const liveCameraVideoRef = useRef<HTMLVideoElement>(null);
 
   // Message Requests state
   const [messageRequests, setMessageRequests] = useState<MessageRequest[]>([]);
@@ -717,11 +734,29 @@ export default function Home() {
   // Helper to resolve request status between current user and a contact
   const getChatRelationship = (contactUsername: string) => {
     if (!currentUser || !currentUser.username || !contactUsername) return null;
+    
+    // Mock contacts are disabled
+
     const match = messageRequests.find(r => 
-      (r.sender.toLowerCase() === currentUser.username.toLowerCase() && r.recipient.toLowerCase() === contactUsername.toLowerCase()) ||
-      (r.sender.toLowerCase() === contactUsername.toLowerCase() && r.recipient.toLowerCase() === currentUser.username.toLowerCase())
+      (currentUser?.username && r.sender.toLowerCase() === currentUser.username.toLowerCase() && r.recipient.toLowerCase() === contactUsername.toLowerCase()) ||
+      (contactUsername && r.sender.toLowerCase() === contactUsername.toLowerCase() && currentUser?.username && r.recipient.toLowerCase() === currentUser.username.toLowerCase())
     );
     return match || null;
+  };
+
+  const checkUsernameAvailability = async () => {
+    if (!username) { setUsernameAvailable(null); return; }
+    try {
+      const res = await fetch(`${API_BASE}/api/users/check-username?username=${encodeURIComponent(username)}`);
+      const data = await res.json();
+      setUsernameAvailable(data.available);
+      if (!data.available) {
+        // Username taken
+      }
+    } catch (e) {
+      console.warn("Username check failed", e);
+      setUsernameAvailable(null);
+    }
   };
 
   const sendChatRequest = (recipientUsername: string) => {
@@ -803,10 +838,12 @@ export default function Home() {
       setTheme(savedTheme);
     }
     const savedUser = localStorage.getItem("chatgroup_current_user");
+    let initialUser = null;
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
         if (parsed && parsed.username) {
+          initialUser = parsed;
           // Restore user immediately from cache — no network needed
           setCurrentUser(parsed);
           setName(parsed.username);
@@ -863,7 +900,7 @@ export default function Home() {
       }
     }
 
-    fetchUsers();
+    fetchUsers(initialUser, true);
     fetchRequests();
     fetchUnreadMessagesCount();
   }, [API_BASE]);
@@ -876,7 +913,7 @@ export default function Home() {
   // Poll users periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchUsers();
+      fetchUsers(currentUser, false);
       fetchRequests();
       fetchUnreadMessagesCount();
     }, 10000);
@@ -933,6 +970,12 @@ export default function Home() {
             recipient: currentUser.username
           })
         }).catch(err => console.warn("Error marking message as read:", err));
+
+        // Emit socket read update instantly
+        socket.emit("readMessages", {
+          sender: newMsg.sender,
+          recipient: currentUser.username
+        });
       } else {
         playSound("receive");
         setUnreadMessagesCount((prev) => prev + 1);
@@ -952,6 +995,33 @@ export default function Home() {
         }
       });
       setTimeout(() => scrollToBottom("smooth"), 50);
+    });
+
+    // Listen for read receipts from other users
+    socket.on("messagesRead", (data: { reader: string }) => {
+      if (!data || !data.reader) return;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg && msg.recipient && msg.recipient.toLowerCase() === data.reader.toLowerCase()
+            ? { ...msg, status: "read" }
+            : msg
+        )
+      );
+    });
+
+    // Listen for delivery updates
+    socket.on("messagesDelivered", (data: { sender: string; recipient: string }) => {
+      if (!data || !data.sender || !data.recipient) return;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg && msg.sender && msg.recipient &&
+          msg.sender.toLowerCase() === data.sender.toLowerCase() &&
+          msg.recipient.toLowerCase() === data.recipient.toLowerCase() &&
+          msg.status === "sent"
+            ? { ...msg, status: "delivered" }
+            : msg
+        )
+      );
     });
 
     // Listen for typing indicator
@@ -1079,6 +1149,14 @@ export default function Home() {
         fetchUnreadMessagesCount();
       })
       .catch(err => console.warn("Error marking messages as read:", err));
+
+      // Emit read status through WebSockets
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit("readMessages", {
+          sender: activeContact.username,
+          recipient: currentUser.username
+        });
+      }
     }
   }, [activeContact, currentUser, API_BASE]);
 
@@ -1277,7 +1355,7 @@ export default function Home() {
       setBio(user.bio || "");
       setEmail(user.email || "");
 
-      fetchUsers();
+      fetchUsers(user, true);
       setToast("Logged in successfully! 👋");
       setTimeout(() => setToast(null), 3000);
     })
@@ -1351,7 +1429,10 @@ export default function Home() {
       setBio(newUser.bio || "");
       setEmail(newUser.email || "");
 
-      fetchUsers();
+      fetchUsers(newUser, true);
+      setRegUsername("");
+      setRegEmail("");
+      setRegPassword("");
       setToast("Account created successfully! 🎉");
       setTimeout(() => setToast(null), 3000);
 
@@ -1482,6 +1563,77 @@ export default function Home() {
     e.target.value = "";
   };
 
+  const startLiveCamera = async () => {
+    setLiveCameraError(null);
+    setCapturedPhoto(null);
+    setIsLiveCameraOpen(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: "user" },
+        audio: false
+      });
+      setLiveCameraStream(stream);
+      setTimeout(() => {
+        if (liveCameraVideoRef.current) {
+          liveCameraVideoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error("Error accessing camera:", err);
+      setLiveCameraError("Could not access your camera. Please ensure permissions are granted.");
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (liveCameraStream) {
+      liveCameraStream.getTracks().forEach((track) => track.stop());
+      setLiveCameraStream(null);
+    }
+    setIsLiveCameraOpen(false);
+    setCapturedPhoto(null);
+    setLiveCameraError(null);
+  };
+
+  const captureLivePhoto = () => {
+    if (liveCameraVideoRef.current) {
+      const video = liveCameraVideoRef.current;
+      const canvas = document.createElement("canvas");
+      const MAX_SIZE = 800;
+      let width = video.videoWidth || 640;
+      let height = video.videoHeight || 480;
+
+      if (width > height) {
+        if (width > MAX_SIZE) {
+          height = Math.round((height * MAX_SIZE) / width);
+          width = MAX_SIZE;
+        }
+      } else {
+        if (height > MAX_SIZE) {
+          width = Math.round((width * MAX_SIZE) / height);
+          height = MAX_SIZE;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        setCapturedPhoto(dataUrl);
+      }
+    }
+  };
+
+  const sendLivePhoto = () => {
+    if (capturedPhoto) {
+      handleSendMessage("", capturedPhoto);
+      stopLiveCamera();
+    }
+  };
+
   function handleLogout() {
     setCurrentUser(null);
     setActiveContact(null);
@@ -1533,18 +1685,14 @@ export default function Home() {
   };
 
   const renderCheckmarks = (status: "sent" | "delivered" | "read") => {
-    const color = status === "read" ? "text-emerald-500" : "text-slate-400";
+    if (status === "sent") {
+      return (
+        <Check className="w-3.5 h-3.5 inline ml-1 text-slate-400 transition-colors duration-300" strokeWidth={3} />
+      );
+    }
+    const color = status === "read" ? "text-sky-400" : "text-slate-400";
     return (
-      <svg
-        className={`w-3.5 h-3.5 inline ml-1 ${color} transition-colors duration-300`}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25l6-6 4.5-4.5" />
-      </svg>
+      <CheckCheck className={`w-3.5 h-3.5 inline ml-1 ${color} transition-colors duration-300`} strokeWidth={3} />
     );
   };
 
@@ -1574,10 +1722,9 @@ export default function Home() {
     if (hasSpecial) score++;
 
     switch (score) {
-      case 1: return { score: 25, label: "Weak ⚠️", color: "bg-rose-500/80", text: "text-rose-400" };
-      case 2: return { score: 50, label: "Medium ⚡", color: "bg-amber-500/80", text: "text-amber-400" };
-      case 3: return { score: 75, label: "Strong ✨", color: "bg-indigo-500/80", text: "text-indigo-400" };
-      case 4: return { score: 100, label: "Excellent 🔒", color: "bg-emerald-500/80", text: "text-emerald-400" };
+      case 1: return { score: 33, label: "Weak ⚠️", color: "bg-rose-500/80", text: "text-rose-400" };
+      case 2: return { score: 66, label: "Medium ⚡", color: "bg-amber-500/80", text: "text-amber-400" };
+      case 3: return { score: 100, label: "Strong ✨", color: "bg-emerald-500/80", text: "text-emerald-400" };
       default: return { score: 10, label: "Too Short ❌", color: "bg-rose-600/85", text: "text-rose-500" };
     }
   };
@@ -1587,16 +1734,16 @@ export default function Home() {
   // Save profile and sync to currentUser states
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (currentUser) {
-      // Backend /api/users/profile requires 'email' to identify the user
+      // Update profile with username, email and bio
       const reqBody = {
-        email: (currentUser as any).email || email,
-        avatarUrl: avatar,
+        username,
+        email,
         bio: bio.trim()
       };
 
-      fetch(`${API_BASE}/api/users/profile`, {
+      fetch(`${API_BASE}/api/users/update-profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(reqBody)
@@ -1605,8 +1752,8 @@ export default function Home() {
       .then(updatedUser => {
         setCurrentUser(updatedUser);
         localStorage.setItem("chatgroup_current_user", JSON.stringify(updatedUser));
-        
-        fetchUsers();
+
+        fetchUsers(updatedUser, false);
 
         if (channelRef.current) {
           channelRef.current.postMessage({
@@ -1968,47 +2115,6 @@ export default function Home() {
                       <span className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full font-bold">Information</span>
                     </div>
 
-                    <div className={`flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl border select-none transition-colors duration-500 ${
-                      isDark ? "bg-slate-950/40 border-slate-900/60" : "bg-slate-50 border-slate-200"
-                    }`}>
-                      <div className="relative group">
-                        <div className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 opacity-60 blur-xs group-hover:opacity-100 transition duration-300" />
-                        
-                        <div className="w-[88px] h-[88px] rounded-full overflow-hidden border-[3px] border-slate-950 relative bg-slate-900">
-                          <img
-                            src={avatar}
-                            alt={name}
-                            className="object-cover w-full h-full"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={triggerAvatarUpload}
-                          className="absolute -bottom-1 -right-1 p-2 bg-slate-900 border border-slate-700/80 text-cyan-400 rounded-full shadow-lg hover:bg-slate-800 transition"
-                          title="Upload Avatar"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="text-center sm:text-left space-y-1">
-                        <h3 className="text-sm.5 font-extrabold">{name}</h3>
-                        <p className={`text-[11px] leading-normal ${isDark ? "text-slate-400" : "text-black"}`}>
-                          JPG, PNG allowed. Standard resolution will be automatically configured.
-                        </p>
-                        
-                        <div className="flex items-center justify-center sm:justify-start gap-3 mt-1.5">
-                          <button
-                            type="button"
-                            onClick={triggerAvatarUpload}
-                            className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1.5 transition"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" /> Roll Random Photo
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2 text-left">
@@ -2032,13 +2138,14 @@ export default function Home() {
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
-                            }`}
+                            onBlur={checkUsernameAvailability}
+                            className={`w-full border rounded-2xl px-4 py-3.5 text-xs.5 outline-none transition duration-300 ${isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"}`}
                             placeholder="Your username..."
                             required
                           />
+                          {usernameAvailable === false && (
+                            <p className="text-rose-400 text-xs mt-1">Username already taken</p>
+                          )}
                         </div>
                       </div>
 
@@ -2057,26 +2164,6 @@ export default function Home() {
                                 : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
                             }`}
                             placeholder="your.email@domain.com"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 text-left">
-                        <label className={`text-[11px] font-bold uppercase tracking-widest px-0.5 ${isDark ? "text-slate-400" : "text-black"}`}>Phone Number</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                            <Phone className="w-4 h-4" />
-                          </span>
-                          <input
-                            type="text"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className={`w-full border rounded-2xl pl-12 pr-4 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
-                            }`}
-                            placeholder="Your phone number..."
                             required
                           />
                         </div>
@@ -2152,10 +2239,7 @@ export default function Home() {
                             type={showNewPassword ? "text" : "password"}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${
-                              isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" 
-                                : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"
-                            }`}
+                            className={`w-full border rounded-2xl pl-4 pr-11 py-3.5 text-xs.5 outline-none transition duration-300 ${isDark ? "bg-[#07070A] border-slate-900 text-white focus:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/10" : "bg-slate-50 border-slate-200 text-black font-semibold focus:border-cyan-500 focus:ring-2 focus:ring-cyan-400/10"}`}
                             placeholder="Type new secure password..."
                             required
                           />
@@ -2305,27 +2389,24 @@ export default function Home() {
 
   // --- DEFAULT VIEW: CHATROOM ---
   return (
-    <div className={`w-full h-screen max-h-screen text-slate-800 flex flex-col font-sans antialiased overflow-hidden ${
+    <div className={`w-full h-screen max-h-screen flex flex-col font-sans antialiased overflow-hidden ${
       theme === "black" 
         ? "bg-black text-slate-100 black-theme" 
-        : isDark ? "bg-slate-950 text-slate-100" 
-          : "bg-white text-slate-800"
+        : isDark ? "bg-[#252529] text-[#E8E8F0]" 
+          : "bg-[#F5F5FA] text-[#252529]"
     }`}>
       
-      {/* 1. TOP CHATGROUP NAVBAR */}
-      <header className={`h-[60px] border-b px-6 flex items-center justify-between z-50 flex-shrink-0 backdrop-blur-md ${
+      {/* 1. TOP NAVBAR - Chatme Style */}
+      <header className={`h-[56px] border-b px-5 flex items-center justify-between z-50 flex-shrink-0 ${
         theme === "black"
           ? "bg-black border-neutral-900"
-          : isDark ? "bg-[#000000]/95 border-slate-900" : "bg-white/95 border-slate-200"
+          : isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-[#E0E0EA]"
       }`}>
         
-        {/* Left Branding */}
+        {/* Left: Logo */}
         <div className="flex items-center gap-2.5 select-none">
-          <svg className="w-6.5 h-6.5 text-sky-500 fill-current" viewBox="0 0 24 24">
-            <path d="M12 2C6.477 2 2 6.119 2 11.2c0 2.925 1.458 5.519 3.743 7.151l-.736 2.946a.75.75 0 001.087.828l3.414-1.707c.803.18 1.637.282 2.492.282 5.523 0 10-4.119 10-9.2C22 6.119 17.523 2 12 2zm1 13h-2v-2h2v2zm0-4h-2V7h2v4z" />
-          </svg>
-          <span className="text-[19px] font-extrabold tracking-tight bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            ChatGroup
+          <span className={`text-[22px] font-black italic tracking-tight ${isDark ? "text-[#E8EA7A]" : "text-[#252529]"}`}>
+            Chatme
           </span>
         </div>
 
@@ -2383,63 +2464,40 @@ export default function Home() {
             onClick={() => {
               setTheme(prev => {
                 const next = prev === "light" ? "dark" : prev === "dark" ? "black" : "light";
-                setToast(next === "light" ? "Light Theme Activated ☀️" : next === "dark" ? "Dark Theme Activated 🌙" : "OLED Black Theme Activated 🌑");
+                setToast(next === "light" ? "Light Theme ☀️" : next === "dark" ? "Dark Theme 🌙" : "OLED Black 🌑");
                 setTimeout(() => setToast(null), 2500);
                 return next;
               });
             }}
-            className={`p-2.5 rounded-xl border transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
-              theme === "black"
-                ? "bg-[#121212] border-neutral-900 text-yellow-400 hover:bg-neutral-900 shadow-md"
-                : isDark ? "bg-slate-900 border-slate-800 text-yellow-400 hover:bg-slate-850 hover:text-yellow-300 shadow-md shadow-yellow-500/5" 
-                  : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200 shadow-sm"
+            className={`w-[44px] h-[24px] rounded-full relative cursor-pointer transition-all duration-300 ${
+              isDark ? "bg-[#E8EA7A]" : "bg-[#D0D0DA]"
             }`}
-            title={`Toggle Theme (Current: ${theme === "black" ? "OLED Black" : isDark ? "Dark Mode" : "Light Mode"})`}
+            title={`Toggle Theme`}
           >
-            {theme === "black" ? (
-              <Sun className="w-4 h-4 text-yellow-400" />
-            ) : isDark ? (
-              <Sparkles className="w-4.5 h-4.5" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-650" />
-            )}
+            <div className={`absolute top-[2px] w-[20px] h-[20px] rounded-full bg-white shadow-md transition-all duration-300 ${
+              isDark ? "left-[22px]" : "left-[2px]"
+            }`} />
           </button>
 
           {currentUser && (
             <>
-              {/* Settings gear icon */}
-              <button 
-                onClick={() => {
-                  if (currentUser) {
-                    setName(currentUser.username);
-                    setUsername(currentUser.username);
-                    setBio(currentUser.bio || "");
-                    setAvatar(currentUser.avatarUrl);
-                  }
-                  setCurrentView("settings");
-                }}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 hover:border-cyan-400 hover:scale-105 transition-all shadow-md shadow-cyan-500/5 active:scale-95 flex items-center gap-1.5 font-extrabold text-xs cursor-pointer"
-                title="Settings Dashboard"
-              >
-                <svg className="w-4.5 h-4.5 stroke-[2.2] animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="hidden sm:inline">Profile Settings</span>
-              </button>
-
-              {/* Home Icon */}
-              <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
-                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              {/* Phone Call Icon */}
+              <button className={`p-2 rounded-lg transition-colors ${isDark ? "text-[#9090B0] hover:text-[#E8EA7A]" : "text-[#6B6B8A] hover:text-[#252529]"}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.824-1.557-5.118-3.851-6.674-6.674l1.293-.97c.362-.272.528-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                 </svg>
               </button>
 
-              {/* Notifications Heart */}
-              <button className="text-slate-500 hover:text-slate-800 transition-colors hidden sm:block">
-                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+              {/* Notification Bell */}
+              <button className={`p-2 rounded-lg transition-colors relative ${isDark ? "text-[#9090B0] hover:text-[#E8EA7A]" : "text-[#6B6B8A] hover:text-[#252529]"}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                 </svg>
+                {totalUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#E8EA7A] text-[#252529] text-[9px] font-black flex items-center justify-center">
+                    {totalUnreadCount}
+                  </span>
+                )}
               </button>
 
               {/* Logged in user avatar */}
@@ -2450,13 +2508,13 @@ export default function Home() {
                   setBio(currentUser.bio || "");
                   setAvatar(currentUser.avatarUrl);
                 }
+                setNavView("settings");
                 setCurrentView("settings");
               }}>
-                <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-cyan-400 to-indigo-500 opacity-60 blur-xs group-hover:opacity-100 transition duration-300" />
                 <img
                   src={currentUser.avatarUrl}
                   alt={currentUser.username}
-                  className="relative w-8 h-8 rounded-full object-cover border border-black active:scale-95 transition-transform"
+                  className="w-8 h-8 rounded-full object-cover border-2 border-[#E8EA7A]/30 hover:border-[#E8EA7A] transition-all"
                 />
               </div>
             </>
@@ -2488,10 +2546,8 @@ export default function Home() {
           }`}>
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-sky-500/40 to-transparent" />
             
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/10 mb-4 text-white">
-              <svg className="w-7 h-7 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-              </svg>
+            <div className="w-14 h-14 rounded-2xl overflow-hidden mb-4 shadow-lg flex items-center justify-center bg-white border border-slate-200">
+              <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
             </div>
 
             <h2 className={`text-2xl font-black tracking-wide mb-1 ${isDark ? "text-slate-100" : "text-slate-800"}`}>
@@ -2632,7 +2688,7 @@ export default function Home() {
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="Create a password"
                       className={`w-full pl-4 pr-11 py-3 border rounded-2xl outline-none text-sm font-medium transition-all focus:ring-4 ${
-                        isDark ? "bg-slate-950/50 border-slate-900 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
+                        isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-sky-500/10" 
                           : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500/10 shadow-sm"
                       }`}
                       required
@@ -2674,32 +2730,131 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        /* MAIN 3-COLUMN FLEXBOARD VIEWPORT */
+        /* MAIN LAYOUT: NAV SIDEBAR + CONTENT */
         <div className="flex-1 flex overflow-hidden w-full relative">
           
-          {/* COLUMN 1: LEFT SIDEBAR MESSAGES LIST (350px) */}
+          {/* LEFT NAVIGATION SIDEBAR */}
+          <nav className={`hidden md:flex w-[200px] flex-shrink-0 flex-col border-r transition-all duration-300 ${
+            theme === "black"
+              ? "bg-black border-neutral-900"
+              : isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-[#EEEEF5] border-[#E0E0EA]"
+          }`}>
+            {/* User Profile Section */}
+            <div className={`p-5 border-b ${isDark ? "border-[#2E2E33]" : "border-[#E0E0EA]"}`}>
+              <div className="flex items-center gap-3">
+                <img
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.username}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#E8EA7A]/30"
+                />
+                <div className="min-w-0">
+                  <h3 className={`text-sm font-bold truncate ${isDark ? "text-[#E8E8F0]" : "text-[#252529]"}`}>
+                    {currentUser.username}
+                  </h3>
+                  <p className="text-[10px] text-emerald-400 font-semibold">Available</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Nav Items */}
+            <div className="flex-1 py-4 px-3 space-y-1">
+              <button
+                onClick={() => { setNavView("chat"); setCurrentView("chat"); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all cursor-pointer ${
+                  navView === "chat"
+                    ? isDark ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15" : "bg-[#E8EA7A]/10 text-[#9A9C2D] border border-[#E8EA7A]/20"
+                    : isDark ? "text-[#9090B0] hover:bg-[#2E2E33] hover:text-[#E8E8F0] border border-transparent" : "text-[#6B6B8A] hover:bg-[#E0E0EA] hover:text-[#252529] border border-transparent"
+                }`}
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                </svg>
+                Chat
+              </button>
+
+              <button
+                onClick={() => { setNavView("group"); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all cursor-pointer ${
+                  navView === "group"
+                    ? isDark ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15" : "bg-[#E8EA7A]/10 text-[#9A9C2D] border border-[#E8EA7A]/20"
+                    : isDark ? "text-[#9090B0] hover:bg-[#2E2E33] hover:text-[#E8E8F0] border border-transparent" : "text-[#6B6B8A] hover:bg-[#E0E0EA] hover:text-[#252529] border border-transparent"
+                }`}
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                </svg>
+                Group
+              </button>
+
+              <button
+                onClick={() => {
+                  setNavView("settings");
+                  if (currentUser) {
+                    setName(currentUser.username);
+                    setUsername(currentUser.username);
+                    setBio(currentUser.bio || "");
+                    setAvatar(currentUser.avatarUrl);
+                  }
+                  setCurrentView("settings");
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all cursor-pointer ${
+                  navView === "settings"
+                    ? isDark ? "bg-[#E8EA7A]/12 text-[#E8EA7A] border border-[#E8EA7A]/15" : "bg-[#E8EA7A]/10 text-[#9A9C2D] border border-[#E8EA7A]/20"
+                    : isDark ? "text-[#9090B0] hover:bg-[#2E2E33] hover:text-[#E8E8F0] border border-transparent" : "text-[#6B6B8A] hover:bg-[#E0E0EA] hover:text-[#252529] border border-transparent"
+                }`}
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Setting
+              </button>
+            </div>
+
+            {/* Logout at bottom */}
+            <div className={`p-3 border-t ${isDark ? "border-[#2E2E33]" : "border-[#E0E0EA]"}`}>
+              <button
+                onClick={handleLogout}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all cursor-pointer ${
+                  isDark ? "text-rose-400 hover:bg-rose-500/10" : "text-rose-500 hover:bg-rose-50"
+                }`}
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </nav>
+
+          {/* COLUMN 1: CHAT LIST (320px) */}
           <section 
-            className={`border-r flex flex-col flex-shrink-0 transition-all duration-300 ${
-              isDark ? "bg-black border-slate-900" : "bg-white border-slate-200"
+            className={`border-r flex flex-col flex-shrink-0 transition-all duration-300 relative ${
+              theme === "black"
+                ? "bg-black border-neutral-900"
+                : isDark ? "bg-[#252529] border-[#2E2E33]" : "bg-white border-[#E0E0EA]"
             } ${
               activeContact 
-                ? "hidden md:flex w-[350px] h-full" 
-                : "w-full md:w-[350px] h-full"
+                ? "hidden md:flex w-[320px] h-full" 
+                : "w-full md:w-[320px] h-full"
             }`}
           >
-            <div className="p-4 flex flex-col gap-3 border-b border-slate-100/10">
-              <div className={`w-full h-[36px] border rounded-lg flex items-center px-3 gap-2 ${
-                isDark ? "bg-[#070709] border-slate-900" : "bg-slate-50 border-slate-200"
+            <div className="p-4 flex flex-col gap-3">
+              {/* Search Bar */}
+              <div className={`w-full h-[38px] border rounded-xl flex items-center px-3 gap-2 ${
+                theme === "black"
+                  ? "bg-[#0a0a0a] border-neutral-900"
+                  : isDark ? "bg-[#2E2E33] border-[#2E2E33]" : "bg-[#F0F0F8] border-[#E0E0EA]"
               }`}>
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-[#6B6B8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent text-sm w-full outline-none text-slate-400 placeholder-slate-500 font-normal"
+                  className={`bg-transparent text-sm w-full outline-none font-normal ${isDark ? "text-[#E8E8F0] placeholder-[#6B6B8A]" : "text-[#252529] placeholder-[#9090B0]"}`}
                 />
               </div>
               
@@ -2710,7 +2865,7 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </div>
-                </div>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
@@ -2729,29 +2884,30 @@ export default function Home() {
                   return (
                     <button
                       key={user.username}
-                      onClick={() => setActiveContact(user)}
-                      className={`w-full p-3 flex items-center gap-3.5 rounded-2xl relative transition-all duration-300 hover:translate-x-1 ${
+                      onClick={() => {
+                        setActiveContact(user);
+                        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                          setIsDetailPaneOpen(false);
+                        }
+                      }}
+                      className={`w-full p-3 flex items-center gap-3 rounded-xl relative transition-all duration-200 ${
                         isActive
-                          ? isDark ? "bg-slate-800/80 border border-slate-700/50 shadow-md shadow-black/10" 
-                            : "bg-slate-100 border border-slate-200/80 shadow-sm"
-                          : isDark ? "border border-transparent hover:bg-slate-900/40 hover:border-slate-850/50" 
-                            : "border border-transparent hover:bg-slate-50/80 hover:border-slate-100"
+                          ? isDark ? "bg-[#2E2E33] border border-[#2E2E33]" 
+                            : "bg-[#E8E8F0] border border-[#D0D0DA]"
+                          : isDark ? "border border-transparent hover:bg-[#2E2E33]/60" 
+                            : "border border-transparent hover:bg-[#F0F0F8]"
                       }`}
                     >
                       <div className="relative flex-shrink-0">
-                        <div className={`w-[52px] h-[52px] rounded-full overflow-hidden p-[2.5px] ${
-                          isActive ? "insta-gradient-border" : isDark ? "border border-slate-800" : "border border-slate-200"
-                        }`}>
+                        <div className="w-[46px] h-[46px] rounded-full overflow-hidden">
                           <img 
                             src={user.avatarUrl} 
-                            className={`w-full h-full rounded-full object-cover border ${
-                              isDark ? "border-slate-900" : "border-white"
-                            }`} 
+                            className="w-full h-full rounded-full object-cover" 
                           />
                         </div>
                         
-                        <span className={`absolute top-0.5 right-0.5 w-3 h-3 rounded-full border-2 ${
-                          isDark ? "border-slate-900" : "border-white"
+                        <span className={`absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${
+                          isDark ? "border-[#252529]" : "border-white"
                         } ${
                           isTyping ? "bg-amber-400 animate-pulse" :
                           isOnline ? "bg-emerald-500 pulse-online" :
@@ -2761,19 +2917,19 @@ export default function Home() {
                       
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex justify-between items-center mb-0.5">
-                          <span className={`text-[13.5px] font-bold tracking-wide truncate ${
-                            isDark ? "text-slate-200" : "text-slate-700"
+                          <span className={`text-[13px] font-bold truncate ${
+                            isDark ? "text-[#E8E8F0]" : "text-[#252529]"
                           }`}>
-                            {user.username.toUpperCase()}
+                            {user.username}
                           </span>
                           {lastMsg ? (
-                            <span className="text-[10px] text-slate-450 font-semibold">{lastMsg.time}</span>
+                            <span className={`text-[10px] font-medium ${isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}`}>{lastMsg.time}</span>
                           ) : (
-                            <span className="text-[10px] text-slate-450 font-medium">08:04 AM</span>
+                            <span className={`text-[10px] font-medium ${isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}`}>08:04 AM</span>
                           )}
                         </div>
                         
-                        <div className="text-[11.5px] text-slate-500 truncate leading-snug">
+                        <div className={`text-[11.5px] truncate leading-snug ${isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}`}>
                           {isTyping ? (
                             <span className="text-purple-500 font-bold animate-pulse">typing...</span>
                           ) : rel && rel.status === 'pending' ? (
@@ -2791,21 +2947,34 @@ export default function Home() {
                       </div>
 
                       {rel && rel.status === 'pending' && rel.recipient.toLowerCase() === currentUser.username.toLowerCase() ? (
-                        <span className="absolute right-4 w-7 h-4.5 rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 text-[9px] font-black text-white flex items-center justify-center select-none shadow animate-pulse">
+                        <span className="absolute right-3 px-1.5 py-0.5 rounded-full bg-[#E8EA7A] text-[9px] font-black text-[#252529] flex items-center justify-center select-none shadow animate-pulse">
                           REQ
                         </span>
+
                       ) : null}
                     </button>
                   );
                 })
               )}
             </div>
+
+            {/* Golden + FAB for new chat */}
+            <button
+              className="fab-new-chat"
+              title="New Chat"
+            >
+              <svg className="w-5 h-5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+            </button>
           </section>
 
           {/* COLUMN 2: MIDDLE PANE - ACTIVE DIRECT MESSAGE STREAM */}
           <main 
             className={`flex-1 flex flex-col border-r transition-all duration-300 ${
-              isDark ? "bg-black border-slate-900" : "bg-white border-slate-200"
+              theme === "black"
+                ? "bg-black border-neutral-900"
+                : isDark ? "bg-[#252529] border-[#2E2E33]" : "bg-white border-[#E0E0EA]"
             } ${
               !activeContact 
                 ? "hidden md:flex h-full items-center justify-center text-center p-8" 
@@ -2815,8 +2984,10 @@ export default function Home() {
             {activeContact ? (
               <>
                 {/* Active Chat Header */}
-                <header className={`h-[60px] px-6 border-b flex items-center justify-between flex-shrink-0 z-40 select-none backdrop-blur-md ${
-                  isDark ? "bg-[#000000]/95 border-slate-900" : "bg-white/95 border-slate-200"
+                <header className={`h-[56px] px-5 border-b flex items-center justify-between flex-shrink-0 z-40 select-none ${
+                  theme === "black"
+                    ? "bg-black border-neutral-900"
+                    : isDark ? "bg-[#1F1F23] border-[#2E2E33]" : "bg-white border-[#E0E0EA]"
                 }`}>
                   <div className="flex items-center gap-3">
                     <button 
@@ -2841,9 +3012,9 @@ export default function Home() {
                       }`} />
                     </div>
                     <div>
-                      <h3 className={`text-sm font-bold tracking-wide ${isDark ? "text-slate-100" : "text-slate-800"}`}>{activeContact.username}</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold tracking-wide">
-                        {typingUsers[activeContact.username] ? "typing..." : "Active now"}
+                      <h3 className={`text-sm font-bold ${isDark ? "text-[#E8E8F0]" : "text-[#252529]"}`}>{activeContact.username}</h3>
+                      <p className={`text-[10px] font-medium ${isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}`}>
+                        {typingUsers[activeContact.username] ? "typing..." : "Last seen 04.10 pm"}
                       </p>
                     </div>
                   </div>
@@ -2874,36 +3045,12 @@ export default function Home() {
                         </svg>
                       </button>
                     )}
-
-                    <button 
-                      onClick={() => setIsDetailPaneOpen((prev) => !prev)}
-                      className={`w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100/10 text-slate-400 hover:text-slate-700 transition-all active:scale-90 cursor-pointer ${
-                        isDetailPaneOpen ? "bg-slate-100/10 text-slate-300" : ""
-                      }`}
-                    >
-                      <svg className="w-5.5 h-5.5 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 111.063.852l-.708 2.836a.75.75 0 001.063.852l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                      </svg>
-                    </button>
                   </div>
                 </header>
 
-                {/* Message feeds stream */}
-                <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-5 custom-scrollbar flex flex-col ${
-                  isDark ? "bg-black" : "bg-white"
+                <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-4 custom-scrollbar flex flex-col ${
+                  theme === "black" ? "bg-black" : isDark ? "bg-[#252529]" : "bg-[#F5F5FA]"
                 }`}>
-                  
-                  {/* Sync info banner */}
-                  <div className="w-full bg-indigo-50/5 border border-indigo-500/10 rounded-xl p-3 flex items-center justify-between text-xs text-indigo-400 gap-3 shadow-sm select-none animate-chat-bubble flex-shrink-0">
-                    <div className="flex items-center gap-2.5">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                      </span>
-                      <span><b>Real-time Sync Active</b>: Open this site in another tab to chat live.</span>
-                    </div>
-                    <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded">Tab Sync</span>
-                  </div>
 
                   {conversationMessages.map((msg) => {
                     const isMe = msg.sender === currentUser.username;
@@ -2925,11 +3072,10 @@ export default function Home() {
 
                         <div className="flex flex-col max-w-[70%]">
                           <div
-                            className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-md break-words relative transition-all ${
-                              isMe
-                                ? "bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 text-white rounded-br-xs shadow-blue-500/10 border border-blue-500/20"
-                                : isDark ? "bg-slate-900/90 text-slate-100 rounded-bl-xs border border-slate-800/80 shadow-black/10"
-                                  : "bg-slate-100/90 text-slate-800 rounded-bl-xs border border-slate-200/50 shadow-slate-100/50"
+                            className={`px-4 py-2.5 rounded-[18px] text-[14px] leading-relaxed break-words relative ${
+                              isMe ? "bg-[#3D1B5C] text-[#FFFFFF] rounded-br-sm shadow-sm"
+                                : isDark ? "bg-[#2E2E33] text-[#E8E8F0] rounded-bl-sm border border-[#2E2E33]"
+                                  : "bg-[#F0F0F8] text-[#252529] rounded-bl-sm border border-[#E0E0EA]"
                             }`}
                           >
                             {msg.text && <p className="font-normal">{msg.text}</p>}
@@ -2942,8 +3088,8 @@ export default function Home() {
                               />
                             )}
 
-                            <div className="flex items-center justify-end mt-1 text-[9px] font-semibold select-none">
-                              <span className={isMe ? "text-white/80" : "text-slate-400"}>{msg.time}</span>
+                            <div className="flex items-center justify-end mt-1 text-[9px] font-medium select-none">
+                              <span className={isMe ? "text-[#FFFFFF]/70" : isDark ? "text-[#6B6B8A]" : "text-[#9090B0]"}>{msg.time}</span>
                               {isMe && msg.status && renderCheckmarks(msg.status)}
                             </div>
                           </div>
@@ -2995,9 +3141,21 @@ export default function Home() {
                         className="hidden"
                         onChange={handleChatImageChange}
                       />
+                      {/* Photo Gallery Upload Button */}
                       <button 
                         onClick={() => chatImageInputRef.current?.click()}
-                        title="Send photo from camera or files"
+                        title="Upload photo from device storage"
+                        className="p-1.5 rounded-full text-slate-500 hover:text-sky-500 hover:bg-slate-100/10 transition-all active:scale-90 cursor-pointer"
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                      </button>
+
+                      {/* Live Snap Web Camera Button */}
+                      <button 
+                        onClick={startLiveCamera}
+                        title="Click photo live"
                         className="p-1.5 rounded-full text-slate-500 hover:text-sky-500 hover:bg-slate-100/10 transition-all active:scale-90 cursor-pointer"
                       >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -3077,10 +3235,10 @@ export default function Home() {
                         />
                         <button
                           onClick={() => handleSendMessage()}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 hover:brightness-110 text-white flex items-center justify-center active:scale-90 transition-transform shadow shadow-sky-500/10 cursor-pointer"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8.5 h-8.5 rounded-xl bg-[#E8EA7A] text-[#1E1E22] hover:bg-[#F3F59B] flex items-center justify-center active:scale-95 hover:scale-105 transition-all shadow-md shadow-[#E8EA7A]/20 rounded-full cursor-pointer"
                           disabled={!inputText.trim()}
                         >
-                          <svg className="w-[15px] h-[15px] rotate-45 -translate-x-[0.5px] stroke-[2.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-[15px] h-[15px] rotate-45 -translate-x-[0.5px] stroke-[2.8] text-[#1E1E22]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                           </svg>
                         </button>
@@ -3545,6 +3703,90 @@ export default function Home() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Live Camera Snapshot Modal Overlay */}
+      {isLiveCameraOpen && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 select-none animate-fade-in">
+          <div className={`w-full max-w-lg rounded-[28px] border overflow-hidden p-6 flex flex-col items-center gap-5 shadow-2xl ${
+            isDark ? "bg-[#0b0b0d] border-slate-900" : "bg-white border-slate-200"
+          }`}>
+            <div className="w-full flex justify-between items-center pb-2 border-b border-slate-100/10">
+              <h3 className={`text-base font-extrabold tracking-tight ${isDark ? "text-slate-100" : "text-slate-800"}`}>
+                Live Snapshot Camera
+              </h3>
+              <button 
+                onClick={stopLiveCamera}
+                className="text-slate-500 hover:text-rose-500 hover:scale-110 active:scale-95 transition-all p-1 cursor-pointer"
+                title="Close camera"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {liveCameraError ? (
+              <div className="w-full py-12 flex flex-col items-center justify-center text-center gap-3">
+                <svg className="w-12 h-12 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-xs font-bold text-rose-500">{liveCameraError}</p>
+                <button
+                  onClick={startLiveCamera}
+                  className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Retry Access
+                </button>
+              </div>
+            ) : capturedPhoto ? (
+              <div className="w-full flex flex-col items-center gap-4">
+                <div className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-100/10 shadow bg-black flex items-center justify-center">
+                  <img src={capturedPhoto} alt="Captured snapshot" className="w-full h-full object-contain" />
+                </div>
+                <div className="flex gap-4 w-full">
+                  <button 
+                    onClick={() => setCapturedPhoto(null)}
+                    className={`flex-1 py-3 border rounded-xl font-extrabold text-xs active:scale-95 transition-all cursor-pointer ${
+                      isDark ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-850" : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    Retake
+                  </button>
+                  <button 
+                    onClick={sendLivePhoto}
+                    className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-extrabold text-xs rounded-xl active:scale-95 transition-all cursor-pointer shadow-lg shadow-emerald-500/15"
+                  >
+                    Send Photo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full flex flex-col items-center gap-4">
+                <div className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-100/10 bg-black shadow relative">
+                  <video 
+                    ref={liveCameraVideoRef}
+                    autoPlay 
+                    playsInline 
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Overlay camera circle guide */}
+                  <div className="absolute inset-0 border border-white/5 flex items-center justify-center pointer-events-none">
+                    <div className="w-48 h-48 rounded-full border border-white/10" />
+                  </div>
+                </div>
+                <button 
+                  onClick={captureLivePhoto}
+                  className="w-14 h-14 rounded-full border-4 border-slate-350 hover:border-white bg-rose-600 active:scale-90 transition-all flex items-center justify-center shadow-lg cursor-pointer"
+                  title="Snap photo"
+                >
+                  <div className="w-7 h-7 rounded-full bg-white" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
