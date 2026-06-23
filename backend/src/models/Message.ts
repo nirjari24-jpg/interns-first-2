@@ -12,6 +12,7 @@ export interface IMessage extends Document {
   replyToId?: string;
   replyToSender?: string;
   replyToText?: string;
+  reactions?: { username: string; emoji: string }[];
 }
 
 const MessageSchema: Schema = new Schema({
@@ -25,7 +26,8 @@ const MessageSchema: Schema = new Schema({
   forwarded: { type: Boolean, default: false },
   replyToId: { type: String },
   replyToSender: { type: String },
-  replyToText: { type: String }
+  replyToText: { type: String },
+  reactions: { type: [{ username: String, emoji: String }], default: [] }
 }, {
   timestamps: true
 });
