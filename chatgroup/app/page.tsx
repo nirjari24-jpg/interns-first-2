@@ -253,6 +253,22 @@ export default function Home() {
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
         };
+      case "cute-shinchan":
+        return {
+          backgroundColor: "#FEDEC9",
+          backgroundImage: "url('/cute_shinchan.png')",
+          backgroundSize: "contain",
+          backgroundPosition: "right bottom",
+          backgroundRepeat: "no-repeat"
+        };
+      case "cute-chibi":
+        return {
+          backgroundColor: "#FFE9EF",
+          backgroundImage: "url('/cute_chibi.png')",
+          backgroundSize: "contain",
+          backgroundPosition: "right bottom",
+          backgroundRepeat: "no-repeat"
+        };
       case "nude-cream":
         return { backgroundColor: "#FAF8F5" };
       case "nude-sand":
@@ -2843,6 +2859,64 @@ export default function Home() {
                         </div>
                         <span className="text-xs.5 font-bold">Forest Mist</span>
                         <span className="text-[9px] text-slate-500 mt-0.5">Calming pine forest with peaceful morning fog</span>
+                      </button>
+
+                      {/* Cute Shin-chan Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("cute-shinchan");
+                          localStorage.setItem("chatgroup_background", "cute-shinchan");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "cute-shinchan"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div 
+                          className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30"
+                          style={{
+                            backgroundColor: "#FEDEC9",
+                            backgroundImage: "url('/cute_shinchan.png')",
+                            backgroundSize: "contain",
+                            backgroundPosition: "center bottom",
+                            backgroundRepeat: "no-repeat"
+                          }}
+                        >
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-800 bg-white/70 px-2 py-1 rounded">Cute Shin-chan</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Cute Shin-chan</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">Shin-chan enjoying burgers and donuts theme</span>
+                      </button>
+
+                      {/* Cute Chibi Theme */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChatBackground("cute-chibi");
+                          localStorage.setItem("chatgroup_background", "cute-chibi");
+                        }}
+                        className={`flex flex-col text-left rounded-2xl border p-4 transition-all duration-350 cursor-pointer group ${
+                          chatBackground === "cute-chibi"
+                            ? "border-cyan-500/80 bg-cyan-500/5 shadow-[0_8px_20px_rgba(6,182,212,0.15)]"
+                            : isDark ? "border-slate-800 bg-slate-950/20 hover:border-slate-700" : "border-slate-200 bg-slate-50 hover:border-slate-350"
+                        }`}
+                      >
+                        <div 
+                          className="w-full h-24 rounded-xl mb-3 flex items-center justify-center border border-slate-850/30"
+                          style={{
+                            backgroundColor: "#FFE9EF",
+                            backgroundImage: "url('/cute_chibi.png')",
+                            backgroundSize: "contain",
+                            backgroundPosition: "center bottom",
+                            backgroundRepeat: "no-repeat"
+                          }}
+                        >
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-800 bg-white/70 px-2 py-1 rounded">Cute Chibi</span>
+                        </div>
+                        <span className="text-xs.5 font-bold">Cute Chibi</span>
+                        <span className="text-[9px] text-slate-500 mt-0.5">Pastel pink chibi strawberry cupcake theme</span>
                       </button>
                     </div>
                   </div>
