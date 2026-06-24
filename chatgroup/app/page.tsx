@@ -184,7 +184,7 @@ export default function Home() {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 
   // Password Change States
-  const [currentPassword, setCurrentPassword] = useState("omgadhiya97@123");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -1202,6 +1202,8 @@ export default function Home() {
           setBio(parsed.bio || "Available to chat in real-time.");
           setAvatar(parsed.avatarUrl);
           if (parsed.email) setEmail(parsed.email);
+          const token = localStorage.getItem("chatgroup_session_token");
+          if (token) setCurrentPassword(token);
 
           // Validate session: if backend restarted (in-memory DB wiped),
           // silently re-register the user so they stay logged in without interruption.
@@ -1710,6 +1712,7 @@ export default function Home() {
       localStorage.setItem("chatgroup_current_user", JSON.stringify(userWithMeta));
       // Store session token (password) for silent re-registration after backend restart
       localStorage.setItem("chatgroup_session_token", authPassword.trim());
+      setCurrentPassword(authPassword.trim());
 
       // Sync settings dashboard profiles
       setName(user.username);
@@ -1784,6 +1787,7 @@ export default function Home() {
       localStorage.setItem("chatgroup_current_user", JSON.stringify(userWithMeta));
       // Store session token (password) for silent re-registration after backend restart
       localStorage.setItem("chatgroup_session_token", regPassword.trim());
+      setCurrentPassword(regPassword.trim());
 
       // Sync settings dashboard profiles
       setName(newUser.username);
@@ -2247,11 +2251,36 @@ export default function Home() {
       alert("New password and confirm password do not match!");
       return;
     }
-    setCurrentPassword(newPassword);
-    setNewPassword("");
-    setConfirmPassword("");
-    setToast("Password updated successfully! 🛡️");
-    setTimeout(() => setToast(null), 3000);
+    if (!currentUser) return;
+
+    fetch(`${API_BASE}/api/users/change-password`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: currentUser.email,
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim()
+      })
+    })
+    .then(async res => {
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update password");
+      }
+      return data;
+    })
+    .then(() => {
+      localStorage.setItem("chatgroup_session_token", newPassword.trim());
+      setCurrentPassword(newPassword.trim());
+      setNewPassword("");
+      setConfirmPassword("");
+      setToast("Password updated successfully! 🛡️");
+      setTimeout(() => setToast(null), 3000);
+    })
+    .catch(err => {
+      console.error("Error updating password:", err);
+      alert(err.message || "Failed to update password. Please check your current password.");
+    });
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);

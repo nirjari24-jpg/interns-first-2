@@ -65,6 +65,35 @@ const cleanupAiUsers = async () => {
   }
 };
 
+// Helper to reset/create user "kupi" with password "kupi@26" for local convenience
+const resetKupiPassword = async () => {
+  try {
+    const kupi = await User.findOne({ username: 'kupi' });
+    if (kupi) {
+      kupi.password = bcrypt.hashSync('kupi@26', 10);
+      if (!kupi.email || !kupi.email.endsWith('@gmail.com')) {
+        kupi.email = 'kupi@gmail.com';
+      }
+      await kupi.save();
+      console.log(`[DB SETUP] Reset password for user "kupi" to "kupi@26"`);
+    } else {
+      const hashedPassword = bcrypt.hashSync('kupi@26', 10);
+      const newUser = new User({
+        username: 'kupi',
+        email: 'kupi@gmail.com',
+        password: hashedPassword,
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+        category: 'MEMBER',
+        bio: 'Joined ChatGroup.'
+      });
+      await newUser.save();
+      console.log(`[DB SETUP] Created user "kupi" with password "kupi@26"`);
+    }
+  } catch (err: any) {
+    console.error('Error resetting kupi password:', err.message);
+  }
+};
+
 // Database Connection
 const connectDB = async () => {
   const dbUri = process.env.MONGODB_URI || 'mongodb+srv://nirjari24_db_user:d4D3yahgyg1FZcpg@cluster0.sehzw9g.mongodb.net/chatgroup?appName=Cluster0';
@@ -74,6 +103,7 @@ const connectDB = async () => {
     await mongoose.connect(dbUri, { serverSelectionTimeoutMS: 2000 });
     console.log('Connected to MongoDB Atlas / Database');
     await cleanupAiUsers();
+    await resetKupiPassword();
   } catch (err: any) {
     console.warn('MongoDB connection error:', err.message);
     console.log('Attempting to start a persistent in-memory MongoDB server as fallback...');
@@ -95,6 +125,7 @@ const connectDB = async () => {
       await mongoose.connect(inMemoryUri);
       console.log('Connected to Persistent MongoMemoryServer Database!');
       await cleanupAiUsers();
+      await resetKupiPassword();
     } catch (memErr: any) {
       console.error('Failed to start persistent MongoDB fallback server:', memErr.message);
       console.log('Falling back to volatile ephemeral MongoMemoryServer...');
@@ -104,6 +135,7 @@ const connectDB = async () => {
         await mongoose.connect(inMemoryUri);
         console.log('Connected to Volatile Ephemeral MongoDB Database!');
         await cleanupAiUsers();
+        await resetKupiPassword();
       } catch (ephErr: any) {
         console.error('Critical: Failed to start any MongoDB server:', ephErr.message);
       }
@@ -535,6 +567,91 @@ app.put('/api/users/profile', async (req: Request, res: Response): Promise<any> 
     res.status(500).json({ error: err.message });
   }
 });
+
+// Update user profile (comprehensive updates: username, bio, avatarUrl)
+app.put('/api/users/update-profile', async (req: Request, res: Response): Promise<any> => {
+  const { username, email, bio, avatarUrl } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (username && username.trim().toLowerCase() !== user.username.toLowerCase()) {
+      const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Username is already taken' });
+      }
+      user.username = username.trim();
+    }
+
+    if (bio !== undefined) user.bio = bio;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+
+    await user.save();
+
+    const responseUser = {
+      id: user._id.toString(),
+      username: user.username,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      category: user.category,
+      bio: user.bio,
+      statusText: user.statusText
+    };
+
+    res.json(responseUser);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check if username is available
+app.get('/api/users/check-username', async (req: Request, res: Response): Promise<any> => {
+  const { username } = req.query;
+  if (!username) {
+    return res.status(400).json({ error: 'Username query parameter is required' });
+  }
+
+  try {
+    const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${(username as string).trim()}$`, 'i') } });
+    res.json({ available: !existingUser });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Change user password
+app.put('/api/users/change-password', async (req: Request, res: Response): Promise<any> => {
+  const { email, currentPassword, newPassword } = req.body;
+  if (!email || !currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isMatch = bcrypt.compareSync(currentPassword.trim(), user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Incorrect current password' });
+    }
+
+    user.password = bcrypt.hashSync(newPassword.trim(), 10);
+    await user.save();
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // MESSAGES REST API
 // Get message history between two users
