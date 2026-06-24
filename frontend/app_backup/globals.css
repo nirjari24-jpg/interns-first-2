@@ -1,0 +1,369 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #252529;
+  --foreground: #FFFFFF;
+  --accent: #E8EA7A;
+  --accent-hover: #F3F59B;
+  --surface: #2E2E33;
+  --surface-light: #35353B;
+  --surface-dark: #1F1F23;
+  --border: #2E2E33;
+  --border-light: #35353B;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0A0A0;
+  --text-muted: #707075;
+  --sent-bubble: #3D1B5C;
+  --sent-text: #FFFFFF;
+  --received-bubble: #2E2E33;
+  --received-text: #FFFFFF;
+  --nav-active: rgba(232, 234, 122, 0.12);
+  --nav-active-border: #E8D44D;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Inter', var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: linear-gradient(135deg, #1E1E22 0%, #2B2B2F 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: 'Inter', var(--font-sans), sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* ===== CHATME DARK THEME ===== */
+
+/* Glass card for auth */
+.glass-card-dark {
+  background: rgba(37, 37, 64, 0.75);
+  backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Floating Ambient Orbs */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-25px) scale(1.05); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) scale(1) rotate(0deg); }
+  50% { transform: translateY(20px) scale(0.95) rotate(180deg); }
+}
+
+@keyframes float-logo {
+  0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+  50% { transform: translate(-50%, calc(-50% - 4px)) rotate(1.5deg); }
+}
+
+.animate-float-slow { animation: float-slow 15s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium 20s ease-in-out infinite; }
+.animate-float-logo { animation: float-logo 3s ease-in-out infinite; }
+
+/* Slide & Fade Animations */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes chatBubbleIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-down { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+.animate-chat-bubble { animation: chatBubbleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+
+.scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* Online Status Pulse */
+.pulse-online {
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Ensure active/accent state colors are preserved by overriding general color rules */
+.light-theme .text-cyan-400 { color: #22d3ee !important; }
+.light-theme .text-cyan-500 { color: #06b6d4 !important; }
+.light-theme .text-emerald-400 { color: #34d399 !important; }
+.light-theme .text-emerald-500 { color: #10b981 !important; }
+.light-theme .text-rose-400 { color: #fb7185 !important; }
+.light-theme .text-rose-500 { color: #f43f5e !important; }
+.light-theme .text-amber-400 { color: #fbbf24 !important; }
+.light-theme .text-amber-500 { color: #f59e0b !important; }
+.light-theme .text-indigo-400 { color: #818cf8 !important; }
+.light-theme .text-indigo-500 { color: #6366f1 !important; }
+.light-theme .text-indigo-600 { color: #4f46e5 !important; }
+.light-theme .text-indigo-400 * { color: #818cf8 !important; }
+.light-theme .text-cyan-400 * { color: #22d3ee !important; }
+.light-theme .text-emerald-400 * { color: #34d399 !important; }
+
+/* Instagram-style gradient ring for active contact */
+.insta-gradient-border {
+  background: linear-gradient(135deg, #E8D44D, #F0A030, #E8D44D) padding-box,
+              linear-gradient(135deg, #E8D44D, #F0A030, #E8D44D) border-box;
+}
+
+/* ===== LEFT NAV SIDEBAR ===== */
+.nav-sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--surface-dark);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.nav-sidebar .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 12px;
+  margin: 2px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.nav-sidebar .nav-item:hover {
+  background: rgba(232, 212, 77, 0.06);
+  color: var(--text-primary);
+}
+
+.nav-sidebar .nav-item.active {
+  background: var(--nav-active);
+  color: var(--accent);
+  border-color: rgba(232, 212, 77, 0.15);
+}
+
+/* ===== GOLDEN ACCENT BUTTONS ===== */
+.btn-accent {
+  background: var(--accent);
+  color: var(--sent-text);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-accent:hover {
+  background: var(--accent-hover);
+  transform: scale(1.02);
+}
+
+.btn-accent:active {
+  transform: scale(0.96);
+}
+
+/* ===== FAB (Floating Action Button) ===== */
+.fab-new-chat {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--sent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(232, 212, 77, 0.25);
+  transition: all 0.2s ease;
+  z-index: 20;
+  border: none;
+}
+
+.fab-new-chat:hover {
+  background: var(--accent-hover);
+  transform: scale(1.1);
+  box-shadow: 0 10px 30px rgba(232, 212, 77, 0.35);
+}
+
+.fab-new-chat:active {
+  transform: scale(0.95);
+}
+
+/* ===== LIGHT THEME OVERRIDES ===== */
+.light-theme {
+  --background: #F5F5FA;
+  --surface: #FFFFFF;
+  --surface-light: #F0F0F8;
+  --surface-dark: #EEEEF5;
+  --border: #E0E0EA;
+  --border-light: #D5D5E0;
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B6B8A;
+  --text-muted: #9090B0;
+  --received-bubble: #F0F0F8;
+  --received-text: #1A1A2E;
+}
+
+/* OLED Black Theme Overrides */
+.black-theme {
+  --background: #000000;
+  --surface: #0A0A0A;
+  --surface-light: #141414;
+  --surface-dark: #000000;
+  --border: #1A1A1A;
+  --border-light: #222222;
+  background-color: #000000 !important;
+  color: #f3f4f6 !important;
+  
+  /* Override Tailwind CSS variables for pure OLED black look */
+  --color-slate-950: #000000 !important;
+  --color-slate-900: #050505 !important;
+  --color-slate-850: #0a0a0a !important;
+  --color-slate-800: #121212 !important;
+  --color-slate-700: #1a1a1a !important;
+  --color-slate-600: #262626 !important;
+  --color-slate-500: #525252 !important;
+  --color-slate-400: #a3a3a3 !important;
+  
+  background-image: none !important;
+}
+
+/* Force custom bracket background class overrides */
+.black-theme .bg-\[\#04060A\],
+.black-theme .bg-\[\#080B12\]\/80,
+.black-theme .bg-\[\#080B12\] {
+  background-color: #000000 !important;
+}
+
+/* High visibility borders in dark/black themes */
+.border-slate-900,
+.border-slate-850,
+.border-slate-800,
+.border-slate-800\/80,
+.border-slate-900\/60,
+.border-neutral-900 {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Light Theme Border Reset */
+.light-theme .border-slate-900,
+.light-theme .border-slate-850,
+.light-theme .border-slate-800,
+.light-theme .border-slate-800\/80,
+.light-theme .border-slate-900\/60,
+.light-theme .border-neutral-900 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Force border styling updates for black-theme */
+.black-theme .border-slate-800\/80,
+.black-theme .border-slate-800,
+.black-theme .border-slate-900\/60,
+.black-theme .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* OLED form overrides */
+.black-theme input,
+.black-theme textarea,
+.black-theme select {
+  background-color: #0a0a0a !important;
+  border-color: #1c1c1c !important;
+  color: #ffffff !important;
+}
+
+.black-theme input::placeholder,
+.black-theme textarea::placeholder {
+  color: #525252 !important;
+}
+
+/* Unread badge golden */
+.unread-badge {
+  background: var(--accent);
+  color: var(--sent-text);
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+/* Toggle switch styling */
+.theme-toggle {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.theme-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.theme-toggle.active::after {
+  left: 24px;
+}
